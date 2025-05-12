@@ -54,7 +54,7 @@ def entrenar_modelo():
 
 @app.route('/')
 def index():
-    return render_template('reconocimiento.html')
+    return render_template('index.html')
 
 @app.route('/videoReC')
 def videoRec():

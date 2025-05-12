@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Asistencia</title>
+  <link rel="stylesheet" href="./estilos/estilos.css" />
+  <script src="script.js"></script>
+</head>
+<body>
+  <div>
+    <div>
+      <div>Registrar Asistencia</div>
+    </div>
+    <form onsubmit="guardar(event)">
+      <div>
+        <label for="estudiante">Nombre del estudiante:</label>
+        <input type="text" id="estudiante">
+      </div>
+      <div>
+        <label for="estadoAsistencia">Estado de asistencia:</label>
+        <select id="estadoAsistencia">
+          <option value="">-- Selecciona una opción --</option>
+          <option value="Presente">Presente</option>
+          <option value="Ausente">Ausente</option>
+          <option value="Tiene Excusa"> Tiene Excusa</option>
+        </select>
+      </div>
+      <button type="submit">Aceptar</button>
+    </form>
+    <div id="rta"></div>
+
+  <hr>
+
+  <div id="rta"></div>
+
+  <div id="popup-confirmacion" class="popup-overlay" style="display:none;">
+    <div class="popup">
+      <h3>¡Asistencia registrada!</h3>
+      <p>El registro se guardó correctamente.</p>
+      <button onclick="cerrarConfirmacion()">Aceptar</button>
+    </div>
+  </div>
+  
+</body>
+</html>
