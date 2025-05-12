@@ -1,16 +1,65 @@
-<!doctype html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Reconocimiento Facial Flask</title>
-</head>
-<body>
-    <h1>🎥 Cámara con reconocimiento facial</h1>
-    <img src="{{ url_for('videoRec') }}" width="640" height="480">
+    <!doctype html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Reconocimiento Facial Flask</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div class="texto-bienvenida">
+                ¡Sonríe! Te reconoceré.
+            </div>
+            <div style="position: relative; display: inline-block;">
+            <video id="camara-video" autoplay playsinline></video>
+            <div class="ia-encima">
+                <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="Cara de la IA">
+            </div>
+        </div>
+    </div>
 
-    <br><br>
-    <a href="{{ url_for('registro') }}">
-        <button>Registrar nuevo estudiante</button>
-    </a>
-</body>
-</html>
+        <br><br>
+
+        <a href="{{ url_for('registro') }}">
+            <button>Registrar nuevo estudiante</button>
+        </a>
+
+        <div class="logo-inferior">
+            <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
+        </div>
+        
+            <script>
+        const videoElement = document.getElementById('camara-video');
+
+        // Función para inicializar la cámara
+        async function iniciarCamara() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = stream;
+            } catch (err) {
+                console.error("Error al acceder a la cámara:", err);
+                // Muestra un mensaje de error al usuario en la página
+                videoElement.style.display = 'none'; // Oculta el elemento de video
+                const errorDiv = document.createElement('div');
+                errorDiv.innerHTML = "No se pudo acceder a la cámara. Por favor, asegúrese de que la cámara esté conectada y los permisos estén habilitados.";
+                errorDiv.style.color = 'red';
+                errorDiv.style.marginTop = '10px';
+                document.querySelector('.texto-bienvenida').parentNode.insertBefore(errorDiv, document.querySelector('.texto-bienvenida').nextSibling);
+
+            }
+        }
+        iniciarCamara();
+
+       /* // Función para actualizar la imagen de la cámara periódicamente  -- Esto ya no es necesario
+        function actualizarVideo() {
+            const imgElement = document.getElementById('camara-video');
+            // La clave es agregar un timestamp a la URL para evitar el caché del navegador -- Esto ya no es necesario
+            imgElement.src = "{{ url_for('video_feed') }}?_=" + new Date().getTime();  -- Esto ya no es necesario
+        }
+
+        // Actualizar la imagen cada 0.1 segundos (100 milisegundos) -- Esto ya no es necesario
+        setInterval(actualizarVideo, 100); // Ajusta la velocidad de actualización según tu necesidad  -- Esto ya no es necesario*/
+    </script>
+    </body>
+    </html>
