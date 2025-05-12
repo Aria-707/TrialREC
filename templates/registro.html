@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar estudiante</title>
+</head>
+<body>
+    <h1>📝 Registro de nuevo estudiante</h1>
+
+    <!-- Cámara en vivo -->
+    <img src="{{ url_for('video_registro') }}" width="640" height="480">
+
+    <!-- Formulario -->
+    <form action="/registrar" method="post">
+        <label for="estudiante">Nombre:</label>
+        <input type="text" id="estudiante" name="estudiante" required>
+        <button type="submit">Capturar y entrenar</button>
+    </form>
+</body>
+</html>

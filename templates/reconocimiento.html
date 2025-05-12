@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reconocimiento Facial Flask</title>
+</head>
+<body>
+    <h1>🎥 Cámara con reconocimiento facial</h1>
+    <img src="{{ url_for('videoRec') }}" width="640" height="480">
+
+    <br><br>
+    <a href="{{ url_for('registro') }}">
+        <button>Registrar nuevo estudiante</button>
+    </a>
+</body>
+</html>
