@@ -16,9 +16,6 @@ db = firestore.client()
 app = Flask(__name__)
 CORS(app)
 
-
-
-
 # Rutas
 dataPath = os.path.join(os.path.dirname(__file__), 'Data')
 model_path = os.path.join('backend', 'modeloLBPHReconocimientoOpencv.xml')
