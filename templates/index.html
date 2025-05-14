@@ -1,65 +1,114 @@
-    <!doctype html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <title>Reconocimiento Facial Flask</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body>
-        <div style="display: flex; flex-direction: column; align-items: center;">
-            <div class="texto-bienvenida">
-                ¡Sonríe! Te reconoceré.
-            </div>
-            <div style="position: relative; display: inline-block;">
-            <video id="camara-video" autoplay playsinline></video>
-            <div class="ia-encima">
-                <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="Cara de la IA">
-            </div>
-        </div>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reconocimiento Facial Flask</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
+</head>
+<body>
+  <div class="contenedor-principal">
+    <div class="texto-bienvenida">¡Sonríe! Te reconoceré.</div>
+
+    <div id="container">
+      <video id="camara-video" autoplay playsinline></video>
+      <canvas id="overlay"></canvas>
+      <div class="ia-encima">
+        <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="Cara de la IA">
+      </div>
     </div>
 
-        <br><br>
+    <p id="resultado-reconocimiento"></p>
 
-        <a href="{{ url_for('registro') }}">
-            <button>Registrar nuevo estudiante</button>
-        </a>
+    <a href="{{ url_for('registrar') }}">
+      <button class="btn-registrar">Registrar nuevo estudiante</button>
+    </a>
+  </div>
 
-        <div class="logo-inferior">
-            <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
-        </div>
-        
-            <script>
-        const videoElement = document.getElementById('camara-video');
+  <div class="logo-inferior">
+    <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
+  </div>
 
-        // Función para inicializar la cámara
-        async function iniciarCamara() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                videoElement.srcObject = stream;
-            } catch (err) {
-                console.error("Error al acceder a la cámara:", err);
-                // Muestra un mensaje de error al usuario en la página
-                videoElement.style.display = 'none'; // Oculta el elemento de video
-                const errorDiv = document.createElement('div');
-                errorDiv.innerHTML = "No se pudo acceder a la cámara. Por favor, asegúrese de que la cámara esté conectada y los permisos estén habilitados.";
-                errorDiv.style.color = 'red';
-                errorDiv.style.marginTop = '10px';
-                document.querySelector('.texto-bienvenida').parentNode.insertBefore(errorDiv, document.querySelector('.texto-bienvenida').nextSibling);
+  <script>
+    const video = document.getElementById('camara-video');
+    const canvas = document.getElementById('overlay');
+    const ctx = canvas.getContext('2d');
+    const resultado = document.getElementById('resultado-reconocimiento');
+    const backendUrl = '/registro';
 
-            }
+    async function iniciarCamara() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        await video.play();
+        // Ajusta canvas al tamaño del video
+        canvas.width  = video.videoWidth;
+        canvas.height = video.videoHeight;
+        setInterval(enviarFotograma, 2000);
+      } catch (err) {
+        resultado.textContent = "No se pudo acceder a la cámara.";
+        console.error("Error cámara:", err);
+      }
+    }
+
+    function dibujar(box, reconocido, confianza, nombre) {
+  // Limpia el canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // box = [x, y, w, h] en coordenadas de la imagen NO espejada
+  const [x, y, w, h] = box;
+
+  // Calcula la X espejada respecto al ancho del canvas
+  const mirroredX = canvas.width - x - w;
+
+  // Dibuja el rectángulo (contorno) espejado
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = reconocido ? 'lime' : 'red';
+  ctx.strokeRect(mirroredX, y, w, h);
+
+  // Ahora dibuja el texto **sin espejar**, justo encima del rectángulo
+  ctx.fillStyle = reconocido ? 'lime' : 'red';
+  ctx.font = '20px Arial';
+  ctx.fillText(
+    reconocido
+      ? `${nombre} (${confianza.toFixed(1)})`
+      : `Desconocido (${confianza.toFixed(1)})`,
+    mirroredX,      // misma X espejada
+    y - 10         // un poco arriba del rectángulo
+  );
+}
+
+
+    async function enviarFotograma() {
+      const tmp = document.createElement('canvas');
+      tmp.width  = video.videoWidth;
+      tmp.height = video.videoHeight;
+      const tmpCtx = tmp.getContext('2d');
+      tmpCtx.drawImage(video, 0, 0);
+      const imgBase64 = tmp.toDataURL('image/jpeg');
+
+      try {
+        const res = await fetch(backendUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imgBase64 })
+        });
+        const data = await res.json();
+
+        if (data.estado === 'reconocido') {
+          resultado.textContent = `✔ ${data.estudiante}`;
+          dibujar(data.box, true, data.confianza, data.estudiante);
+        } else if (data.estado === 'desconocido') {
+          dibujar(data.box, false, data.confianza);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
-        iniciarCamara();
+      } catch (e) {
+        console.error('Error:', e);
+      }
+    }
 
-       /* // Función para actualizar la imagen de la cámara periódicamente  -- Esto ya no es necesario
-        function actualizarVideo() {
-            const imgElement = document.getElementById('camara-video');
-            // La clave es agregar un timestamp a la URL para evitar el caché del navegador -- Esto ya no es necesario
-            imgElement.src = "{{ url_for('video_feed') }}?_=" + new Date().getTime();  -- Esto ya no es necesario
-        }
-
-        // Actualizar la imagen cada 0.1 segundos (100 milisegundos) -- Esto ya no es necesario
-        setInterval(actualizarVideo, 100); // Ajusta la velocidad de actualización según tu necesidad  -- Esto ya no es necesario*/
-    </script>
-    </body>
-    </html>
+    iniciarCamara();
+  </script>
+</body>
+</html>

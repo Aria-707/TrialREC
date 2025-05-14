@@ -1,0 +1,240 @@
+/* Popup (si lo usas en algún modal) */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.popup {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  min-width: 300px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+/* Body y contenedor principal */
+body {
+  margin: 0;
+  padding: 0;
+  background: url("/static/imagenes/fondo.png") center/cover no-repeat;
+  font-family: Arial, sans-serif;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  text-align: center;
+}
+
+.contenedor-principal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Título */
+.texto-bienvenida {
+  color: black;
+  font-size: 50px;
+  margin-bottom: 30px;
+}
+
+/* Container vídeo + overlay + IA */
+#container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Solo el video irá en modo espejo */
+#camara-video {
+  width: 100%;
+  max-width: 800px;
+  border: 4px solid white;
+  border-radius: 10px;
+  transform: scaleX(-1);
+}
+
+/* El canvas NO se espeja, mantén su orientación original */
+#overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  max-width: 800px;
+  pointer-events: none;
+}
+
+
+/* Imagen IA encima */
+.ia-encima {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 60px;
+  animation: flotarSuave 2s infinite alternate;
+  z-index: 10;
+}
+
+.ia-encima img {
+  width: 250%;
+  height: auto;
+}
+
+/* Botón registro */
+.btn-registrar {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #808080;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+}
+
+.btn-registrar:hover {
+  box-shadow: 0 5px #8ff58f;
+}
+
+/* Logo inferior */
+.logo-inferior {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.logo-inferior img {
+  max-width: 200px;
+  height: auto;
+}
+
+/* Animación IA */
+@keyframes flotarSuave {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-5px);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .texto-bienvenida {
+    font-size: 30px;
+  }
+
+  video {
+    max-width: 100%;
+  }
+
+  .ia-encima {
+    width: 40px;
+    top: 5px;
+    right: 5px;
+  }
+
+  .btn-registrar {
+    font-size: 14px;
+    padding: 8px 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .texto-bienvenida {
+    font-size: 24px;
+  }
+
+  body {
+    font-size: 12px;
+  }
+}
+
+#container-reg {
+  position: relative;
+  display: inline-block;
+}
+
+#video-reg {
+  width: 640px;
+  height: 480px;
+  border: 3px solid #333;
+  border-radius: 8px;
+  transform: scaleX(-1);
+}
+
+#overlay-reg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 640px;
+  height: 480px;
+  pointer-events: none;
+}
+
+form {
+  margin-top: 20px;
+}
+
+.mensaje-error {
+  color: red;
+  margin-top: 10px;
+}
+
+#container-reg {
+  position: relative;
+  display: inline-block;
+}
+
+#stream-reg {
+  width: 640px;
+  height: 480px;
+  border: 3px solid #333;
+  border-radius: 8px;
+  transform: scaleX(-1);
+}
+
+#overlay-reg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 640px;
+  height: 480px;
+  pointer-events: none;
+}
+
+#video-capture {
+  width: 100%;
+  max-width: 800px;
+  border: 4px solid white;
+  border-radius: 10px;
+  transform: scaleX(-1);
+}
+
+form {
+  margin-top: 20px;
+}
+
+.mensaje-error {
+  color: red;
+  margin-top: 10px;
+}
+
+.mensaje-exito {
+  color: green;
+  margin-top: 10px;
+}
