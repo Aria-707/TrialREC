@@ -49,14 +49,56 @@ face_recognizer = cv2.face.LBPHFaceRecognizer_create()
 if os.path.exists(model_path):
     face_recognizer.read(model_path)
     imagePaths = os.listdir(dataPath)
+    # Mantener un índice de labels por persona
+    label_dict = {name: idx for idx, name in enumerate(imagePaths)}
+    next_label = len(imagePaths)
+
 else:
     imagePaths = []
+
+# ——— Aquí inicializamos las etiquetas ———
+# Cada nombre de carpeta (persona) recibe un índice entero único
+label_dict = { name: idx for idx, name in enumerate(imagePaths) }
+# El siguiente índice libre será la longitud actual de imagePaths
+next_label = len(imagePaths)
+print("Model loaded. Persons:", imagePaths)
+print("Label dict:", label_dict, " Next label:", next_label)
 
 # Para evitar registros duplicados
 cap = None
 duracion_reconocimiento = 3
 estudiantes_reconocidos = set()
 tiempos_reconocimiento = {}
+def entrenar_incremental(nuevos_registros):
+    """
+    recibe nuevos_registros: dict { persona: [rutas_img1, rutas_img2, ...], ... }
+    """
+    global face_recognizer, label_dict, next_label, imagePaths
+
+    # Preparar listas
+    facesData, labels = [], []
+
+    for persona, rutas in nuevos_registros.items():
+        # Asigna etiqueta nueva si no existe
+        if persona not in label_dict:
+            label_dict[persona] = next_label
+            imagePaths.append(persona)
+            next_label += 1
+
+        lbl = label_dict[persona]
+        for img_path in rutas:
+            img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+            if img is not None:
+                facesData.append(img)
+                labels.append(lbl)
+
+    if facesData:
+        # Continúa entrenamiento (update) sobre el modelo existente
+        face_recognizer.update(facesData, np.array(labels))
+        face_recognizer.write(model_path)
+        print(f"Entrenamiento incremental: añadido {len(facesData)} imágenes.")
+    else:
+        print("No hay imágenes nuevas para entrenar.")
 
 def entrenar_modelo():
     global face_recognizer, imagePaths
@@ -110,6 +152,37 @@ def entrenar_modelo():
 
     print(" Todas las imágenes originales han sido borradas.")
 
+def entrenar_incremental(nuevos_registros):
+    """
+    recibe nuevos_registros: dict { persona: [rutas_img1, rutas_img2, ...], ... }
+    """
+    global face_recognizer, label_dict, next_label, imagePaths
+
+    # Preparar listas
+    facesData, labels = [], []
+
+    for persona, rutas in nuevos_registros.items():
+        # Asigna etiqueta nueva si no existe
+        if persona not in label_dict:
+            label_dict[persona] = next_label
+            imagePaths.append(persona)
+            next_label += 1
+
+        lbl = label_dict[persona]
+        for img_path in rutas:
+            img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+            if img is not None:
+                facesData.append(img)
+                labels.append(lbl)
+
+    if facesData:
+        # Continúa entrenamiento (update) sobre el modelo existente
+        face_recognizer.update(facesData, np.array(labels))
+        face_recognizer.write(model_path)
+        print(f"Entrenamiento incremental: añadido {len(facesData)} imágenes.")
+    else:
+        print("No hay imágenes nuevas para entrenar.")
+
 
 def registrar_asistencia(nombre):
     url = 'https://registro-asistencia-pgc.netlify.app/.netlify/functions/regAsistencia'
@@ -162,7 +235,7 @@ def registrer():
     count = 0
     print("Iniciando captura de fotos...")
     fotos_subidas = []  # Lista para almacenar las rutas de las fotos subidas a Supabase
-
+    nuevas_rutas = []
     while count < 100:
         ret, frame = cap.read()
         if not ret:
@@ -200,8 +273,14 @@ def registrer():
     print(f"Captura completada. Total: {count} fotos subidas a Supabase")
 
     # Entrenar el modelo
-    print("=== INICIANDO ENTRENAMIENTO ===")
-    entrenar_modelo()
+    print("=== INICIANDO ENTRENAMIENTO INCREMENTAL ===")
+    entrenar_incremental({estudiante: nuevas_rutas})
+
+# Borra las imágenes procesadas
+    for r in nuevas_rutas:
+        os.remove(r)
+        os.rmdir(personPath)
+        print(" Imágenes temporales eliminadas.")
 
     return redirect('/')
 
