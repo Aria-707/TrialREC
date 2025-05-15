@@ -61,45 +61,55 @@ tiempos_reconocimiento = {}
 def entrenar_modelo():
     global face_recognizer, imagePaths
     print("Entrenando modelo...")
-    
-    peopleList = os.listdir(dataPath)
+
+    # Listado de personas en Data/
+    peopleList = [d for d in os.listdir(dataPath) if os.path.isdir(os.path.join(dataPath, d))]
     print(f"Personas encontradas: {peopleList}")
-    
-    labels = []
-    facesData = []
+
+    labels, facesData = [], []
     label = 0
-    
+
     for nameDir in peopleList:
         personPath = os.path.join(dataPath, nameDir)
-        print(f"Procesando carpeta: {nameDir}")
-        
-        if not os.path.isdir(personPath):
-            print(f"Saltando {nameDir} (no es directorio)")
-            continue
-        
-        images_count = 0
+        print(f" Procesando carpeta: {nameDir}")
+
         for fileName in os.listdir(personPath):
             image_path = os.path.join(personPath, fileName)
-            image = cv2.imread(image_path, 0)
-            if image is not None:
+            img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+            if img is not None:
+                facesData.append(img)
                 labels.append(label)
-                facesData.append(image)
-                images_count += 1
-        
-        print(f"  - {images_count} imágenes procesadas para {nameDir}")
+
         label += 1
-    
-    print(f"Total de imágenes: {len(facesData)}")
-    print(f"Total de etiquetas: {len(labels)}")
-    
-    if facesData:
-        face_recognizer = cv2.face.LBPHFaceRecognizer_create()
-        face_recognizer.train(facesData, np.array(labels))
-        imagePaths = peopleList
-        print("=== MODELO ENTRENADO CON ÉXITO ===")
-        print(f"ImagePaths actualizado: {imagePaths}")
-    else:
-        print("ERROR: No se encontraron imágenes para entrenar")
+
+    print(f" Total de imágenes: {len(facesData)}")
+    if not facesData:
+        print(" ERROR: No se encontraron imágenes para entrenar")
+        return
+
+    # 1) Entrenar el recognizer
+    face_recognizer = cv2.face.LBPHFaceRecognizer_create()
+    face_recognizer.train(facesData, np.array(labels))
+    imagePaths = peopleList
+    print(" === MODELO ENTRENADO CON ÉXITO ===")
+    print(f" ImagePaths actualizado: {imagePaths}")
+
+    # 2) Guardar modelo en disco
+    face_recognizer.write(model_path)
+    print(f" Modelo guardado en: {model_path}")
+
+    # 3) Borrar todas las imágenes originales
+    for nameDir in peopleList:
+        personPath = os.path.join(dataPath, nameDir)
+        for fileName in os.listdir(personPath):
+            img_file = os.path.join(personPath, fileName)
+            os.remove(img_file)
+        # (Opcional) eliminar carpeta vacía:
+        os.rmdir(personPath)
+        print(f" Carpeta eliminada: {personPath}")
+
+    print(" Todas las imágenes originales han sido borradas.")
+
 
 def registrar_asistencia(nombre):
     url = 'https://registro-asistencia-pgc.netlify.app/.netlify/functions/regAsistencia'
@@ -182,11 +192,11 @@ def registrer():
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        cv2.imshow('Capturando rostros', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        #cv2.imshow('Capturando rostros', frame)
+        #if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    cv2.destroyAllWindows()
+    #cv2.destroyAllWindows()
     print(f"Captura completada. Total: {count} fotos subidas a Supabase")
 
     # Entrenar el modelo
