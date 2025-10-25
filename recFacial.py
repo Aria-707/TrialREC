@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, Response
+from flask import Flask, render_template, request, jsonify, redirect, Response, send_file
 import cv2
 import os
 import numpy as np
@@ -1232,6 +1232,9 @@ def api_limpiar_registros():
             "error": str(e)
         }), 500
     
+@app.route("/firebase-config")
+def firebase_config():
+    return send_file("./firebase_config_public.json")
 
 if __name__ == '__main__':
     print("\n" + "="*60)

@@ -4,6 +4,7 @@ node_modules/
 
 # Firebase credentials s
 asistenciaconreconocimiento-firebase-adminsdk.json
+firebase_config_public.json
 .env
 *.xml
 salon_config.txt

@@ -243,23 +243,11 @@
     <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
   </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-
   <script>
-    // CONFIGURACIÓN FIREBASE - REEMPLAZA CON TUS CREDENCIALES
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
+    import { initFirebase } from "/static/firebaseCred.js";
+  import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
+  const { auth } = await initFirebase();
 
     // VARIABLES GLOBALES
     const video = document.getElementById('camara-video');
