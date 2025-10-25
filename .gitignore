@@ -1,5 +1,6 @@
 importarFirebase/
 Data/
+node_modules/
 
 # Firebase credentials s
 *.json
