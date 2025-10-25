@@ -10,27 +10,9 @@ import json
 from flask_cors import CORS
 import firebase_admin
 from firebase_admin import credentials, firestore
+from datetime import datetime
 
-#cred = credentials.Certificate('asistenciaconreconocimiento-firebase-adminsdk-fbsvc-793e372c66.json')
-#firebase_admin.initialize_app(cred)
-#db = firestore.client()
-
-private_key = os.environ.get("FIREBASE_PRIVATE_KEY").replace('\\n', '\n')
-
-cred = credentials.Certificate({
-    "type": "service_account",
-    "project_id": os.environ.get("FIREBASE_PROJECT_ID"),
-    "private_key_id": os.environ.get("FIREBASE_PRIVATE_KEY_ID"),
-    "private_key": private_key,
-    "client_email": os.environ.get("FIREBASE_CLIENT_EMAIL"),
-    "client_id": os.environ.get("FIREBASE_CLIENT_ID"),
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": os.environ.get("FIREBASE_CLIENT_CERT_URL"),
-    "universe_domain": "googleapis.com"
-})
-
+cred = credentials.Certificate('asistenciaconreconocimiento-firebase-adminsdk.json')
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
@@ -55,12 +37,9 @@ if os.path.exists(model_path):
 
 else:
     imagePaths = []
+    label_dict = {}
+    next_label = 0
 
-# ——— Aquí inicializamos las etiquetas ———
-# Cada nombre de carpeta (persona) recibe un índice entero único
-label_dict = { name: idx for idx, name in enumerate(imagePaths) }
-# El siguiente índice libre será la longitud actual de imagePaths
-next_label = len(imagePaths)
 print("Model loaded. Persons:", imagePaths)
 print("Label dict:", label_dict, " Next label:", next_label)
 
@@ -69,6 +48,44 @@ cap = None
 duracion_reconocimiento = 3
 estudiantes_reconocidos = set()
 tiempos_reconocimiento = {}
+
+def obtener_curso_activo(profesor_id=None):
+    try:
+        ahora = datetime.now()
+        dia_semana = ahora.strftime('%A')
+        hora_actual = ahora.strftime('%H:%M')
+        
+        print(f"\n=== BUSCANDO CURSO ACTIVO ===")
+        print(f"Día: {dia_semana}, Hora: {hora_actual}")
+        
+        cursos_ref = db.collection('courses')
+        if profesor_id:
+            cursos_ref = cursos_ref.where('profesorID', '==', profesor_id)
+        
+        cursos = cursos_ref.get()
+        
+        for curso_doc in cursos:
+            curso_data = curso_doc.to_dict()
+            schedule = curso_data.get('schedule', {})
+            
+            if dia_semana in schedule:
+                horario_dia = schedule[dia_semana]
+                hora_inicio = horario_dia.get('start', '00:00')
+                hora_fin = horario_dia.get('end', '23:59')
+                
+                if hora_inicio <= hora_actual <= hora_fin:
+                    print(f"[✔] Curso activo: {curso_doc.id} - {curso_data.get('nameCourse')}")
+                    print(f"=== FIN BÚSQUEDA ===\n")
+                    return curso_doc.id
+        
+        print(f"[!] No se encontró curso activo. Usando 'default_course'")
+        print(f"=== FIN BÚSQUEDA ===\n")
+        return 'default_course'
+        
+    except Exception as e:
+        print(f"[✖] ERROR obteniendo curso activo: {e}")
+        return 'default_course'
+
 def entrenar_incremental(nuevos_registros):
     """
     recibe nuevos_registros: dict { persona: [rutas_img1, rutas_img2, ...], ... }
@@ -184,16 +201,86 @@ def entrenar_incremental(nuevos_registros):
         print("No hay imágenes nuevas para entrenar.")
 
 
-def registrar_asistencia(nombre):
-    url = 'https://registro-asistencia-pgc.netlify.app/.netlify/functions/regAsistencia'
-    headers = {'Content-Type': 'application/json'}
-    payload = {"estudiante": nombre, "estadoAsistencia": "Presente"}
+def registrar_asistencia(nombre_estudiante, courseID='default_course'):
+    """
+    Registra la asistencia de un estudiante en la estructura jerárquica:
+    courses/{courseID}/assistances/{YYYY-MM-DD}/{estudianteID}
+    
+    Args:
+        nombre_estudiante: Nombre del estudiante reconocido
+        courseID: ID del curso activo (por defecto 'default_course')
+    """
     try:
-        r = requests.post(url, json=payload, headers=headers)
-        r.raise_for_status()
-        print(f"[✔] Asistencia registrada para {nombre}")
+        # 1. Obtener la fecha actual en formato YYYY-MM-DD
+        from datetime import datetime
+        fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+        hora_actual = datetime.now().strftime('%H:%M')
+        
+        print(f"\n=== REGISTRANDO ASISTENCIA ===")
+        print(f"Estudiante: {nombre_estudiante}")
+        print(f"Fecha: {fecha_hoy}")
+        print(f"Hora: {hora_actual}")
+        print(f"Curso: {courseID}")
+        
+        # 2. Buscar el ID del estudiante por su nombre en la colección 'person'
+        personas_ref = db.collection('person')
+        query = personas_ref.where('namePerson', '==', nombre_estudiante).where('type', '==', 'Estudiante').limit(1)
+        resultados = query.get()
+        
+        if not resultados:
+            print(f"[✖] ERROR: No se encontró estudiante con nombre '{nombre_estudiante}' en la colección.")
+            return False
+        
+        estudiante_doc = resultados[0]
+        estudianteID = estudiante_doc.id
+        print(f"EstudianteID encontrado: {estudianteID}")
+        
+        # 3. Verificar que el estudiante esté inscrito en el curso
+        estudiante_data = estudiante_doc.to_dict()
+        cursos_estudiante = estudiante_data.get('courses', [])
+        
+        if courseID not in cursos_estudiante:
+            print(f"[✖] ADVERTENCIA: El estudiante {nombre_estudiante} no está inscrito en el curso {courseID}")
+            # Puedes decidir si continuar o no. Por ahora, continuamos pero mostramos advertencia
+        
+        # 4. Referencia al documento de asistencia del día
+        asistencia_ref = db.collection('courses').document(courseID).collection('assistances').document(fecha_hoy)
+        
+        # 5. Verificar si ya existe el documento de la fecha
+        asistencia_doc = asistencia_ref.get()
+        
+        # 6. Crear o actualizar el documento con la asistencia del estudiante
+        datos_asistencia = {
+            estudianteID: {
+                'estadoAsistencia': 'Presente',
+                'horaRegistro': hora_actual
+            }
+        }
+        
+        if asistencia_doc.exists:
+            # El documento ya existe, verificar si el estudiante ya registró asistencia
+            datos_existentes = asistencia_doc.to_dict() or {}
+            
+            if estudianteID in datos_existentes:
+                print(f"[!] El estudiante {nombre_estudiante} ya tiene asistencia registrada hoy")
+                return True
+            
+            # Agregar el nuevo estudiante al documento existente
+            asistencia_ref.update(datos_asistencia)
+            print(f"[✔] Asistencia ACTUALIZADA para {nombre_estudiante} en {courseID}/{fecha_hoy}")
+        else:
+            # Crear nuevo documento para esta fecha
+            asistencia_ref.set(datos_asistencia)
+            print(f"[✔] Asistencia CREADA para {nombre_estudiante} en {courseID}/{fecha_hoy}")
+        
+        print(f"=== REGISTRO EXITOSO ===\n")
+        return True
+        
     except Exception as e:
-        print(f"[✖] Error registrando asistencia: {e}")
+        print(f"[✖] ERROR registrando asistencia: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 def decode_image(data_url):
     """Decodifica base64 data:image/... y devuelve BGR numpy array."""
@@ -394,16 +481,5 @@ def guardar_foto():
 
     return jsonify({"ok": True}), 200
 
-def registrar_asistencia(nombre):
-    try:
-        db.collection('asistenciaReconocimiento').add({
-            'estudiante': nombre,
-            'estadoAsistencia': 'Presente',
-            'fechaYhora': firestore.SERVER_TIMESTAMP,
-            'asignatura': 'Física'
-        })
-        print(f"[✔] Asistencia registrada para {nombre}")
-    except Exception as e:
-        print(f"[✖] Error registrando asistencia: {e}")
 if __name__ == '__main__':
     app.run(debug=True)

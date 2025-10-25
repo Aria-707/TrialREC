@@ -1,3 +1,7 @@
+importarFirebase/
+Data/
+
 # Firebase credentials s
 *.json
 .env
+.xml
