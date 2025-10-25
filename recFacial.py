@@ -51,6 +51,7 @@ cap = None
 duracion_reconocimiento = 3
 estudiantes_reconocidos = set()
 tiempos_reconocimiento = {}
+salon_anterior = None  # Para detectar cambios de salón
 
 # ==================== MAPEO DE DÍAS ====================
 DIAS_ESPANOL_A_INGLES = {
@@ -414,8 +415,33 @@ def detectar_rostro_mejorado(imagen_gray):
     
     return None, None
 
-# Variable global para almacenar el salón configurado
+# Variable global para almacenar el salón configurado (persistente)
 salon_configurado = None
+SALON_CONFIG_FILE = 'salon_config.txt'
+
+def cargar_salon_persistente():
+    """Carga el salón configurado desde archivo."""
+    global salon_configurado
+    try:
+        if os.path.exists(SALON_CONFIG_FILE):
+            with open(SALON_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                salon_configurado = f.read().strip()
+                print(f"✔ Salón cargado desde archivo: '{salon_configurado}'")
+                return salon_configurado
+    except Exception as e:
+        print(f"⚠️ Error cargando salón: {e}")
+    return None
+
+def guardar_salon_persistente(salon):
+    """Guarda el salón configurado en archivo."""
+    try:
+        with open(SALON_CONFIG_FILE, 'w', encoding='utf-8') as f:
+            f.write(salon)
+        print(f"💾 Salón guardado: '{salon}'")
+        return True
+    except Exception as e:
+        print(f"❌ Error guardando salón: {e}")
+        return False
 
 # ==================== FUNCIÓN: OBTENER TODOS LOS SALONES ====================
 def obtener_salones_disponibles():
@@ -501,7 +527,7 @@ def obtener_salones_disponibles():
 # ==================== FUNCIÓN: CONFIGURAR SALÓN ====================
 def configurar_salon(nombre_salon):
     """
-    Configura el salón activo para el sistema.
+    Configura el salón activo para el sistema y lo persiste.
     
     Args:
         nombre_salon: Nombre del salón a configurar
@@ -513,6 +539,7 @@ def configurar_salon(nombre_salon):
     
     try:
         salon_configurado = nombre_salon.strip()
+        guardar_salon_persistente(salon_configurado)
         print(f"\n✅ SALÓN CONFIGURADO: '{salon_configurado}'")
         return True
     except Exception as e:
@@ -690,10 +717,10 @@ def verificar_horario_salon(schedule, dia_espanol, dia_ingles, hora_actual_str, 
 def index():
     """
     Ruta principal.
-    Si no hay salón configurado, redirige a configuración.
-    Si ya está configurado, muestra la página de reconocimiento.
+    Carga el salón persistente automáticamente.
     """
-    salon_actual = obtener_salon_actual()
+    # Cargar salón desde archivo
+    salon_actual = cargar_salon_persistente()
     
     if not salon_actual:
         # No hay salón configurado, ir a configuración
@@ -711,6 +738,8 @@ def registrar():
 @app.route('/registro', methods=['POST'])
 def registro():
     """Endpoint para reconocimiento en tiempo real CON SALÓN"""
+    global estudiantes_reconocidos, tiempos_reconocimiento, salon_anterior
+    
     try:
         # Verificar que haya salón configurado
         salon_actual = obtener_salon_actual()
@@ -720,6 +749,19 @@ def registro():
                 "estado": "error",
                 "mensaje": "No hay salón configurado. Configura el salón primero."
             }), 400
+        
+        # DETECTAR CAMBIO DE SALÓN Y LIMPIAR REGISTROS
+        if salon_anterior is not None and salon_anterior != salon_actual:
+            print(f"\n🔄 CAMBIO DE SALÓN DETECTADO:")
+            print(f"   Anterior: '{salon_anterior}'")
+            print(f"   Nuevo: '{salon_actual}'")
+            print(f"   Limpiando registros previos...")
+            estudiantes_reconocidos.clear()
+            tiempos_reconocimiento.clear()
+            print(f"   ✅ Registros limpiados - se reintentará asistencia\n")
+        
+        # Actualizar salón anterior
+        salon_anterior = salon_actual
         
         data = request.get_json()
         if not data or 'image' not in data:
@@ -1162,6 +1204,33 @@ def api_salon_actual():
             "success": False,
             "error": str(e)
         }), 500
+
+
+@app.route('/api/limpiar_registros', methods=['POST'])
+def api_limpiar_registros():
+    """
+    Limpia los registros de estudiantes reconocidos.
+    Se llama cuando se cambia de salón.
+    """
+    global estudiantes_reconocidos, tiempos_reconocimiento
+    
+    try:
+        estudiantes_reconocidos.clear()
+        tiempos_reconocimiento.clear()
+        
+        print(f"\n🧹 REGISTROS LIMPIADOS MANUALMENTE")
+        print(f"   Se reintentará el registro de asistencia")
+        
+        return jsonify({
+            "success": True,
+            "mensaje": "Registros limpiados correctamente"
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
     
 
 if __name__ == '__main__':
@@ -1173,6 +1242,14 @@ if __name__ == '__main__':
     print(f"👥 Personas cargadas: {len(imagePaths)}")
     print(f"Python: {sys.version}")
     print(f"OpenCV: {cv2.__version__}")
+    
+    # Cargar salón persistente al inicio
+    salon_inicial = cargar_salon_persistente()
+    if salon_inicial:
+        print(f"🏫 Salón configurado: {salon_inicial}")
+    else:
+        print(f"⚠️ No hay salón configurado")
+    
     print("="*60 + "\n")
     
     app.run(debug=True, host='127.0.0.1', port=5000)

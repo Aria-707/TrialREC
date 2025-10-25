@@ -6,3 +6,4 @@ node_modules/
 asistenciaconreconocimiento-firebase-adminsdk.json
 .env
 *.xml
+salon_config.txt

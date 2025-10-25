@@ -420,6 +420,7 @@
       btnModalConfirmar.textContent = '⏳ Configurando...';
 
       try {
+        // 1. Configurar el nuevo salón
         const response = await fetch('/api/configurar_salon', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -432,20 +433,22 @@
           throw new Error(data.error || 'Error al configurar salón');
         }
 
+        // 2. Limpiar registros de estudiantes reconocidos
+        console.log('🧹 Limpiando registros...');
+        await fetch('/api/limpiar_registros', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
         btnModalConfirmar.textContent = '✅ ¡Configurado!';
         btnModalConfirmar.style.background = '#00ff00';
 
-        salonText.textContent = nuevoSalon;
-        salonBadge.style.background = 'rgba(0, 255, 0, 0.9)';
-
         console.log(`✔ Salón cambiado a: ${nuevoSalon}`);
+        console.log('↩️ Redirigiendo a página principal...');
 
+        // 3. REDIRIGIR A INDEX.HTML PARA REINTENTAR REGISTRO
         setTimeout(() => {
-          configModal.classList.remove('active');
-          modalSalonSelect.value = '';
-          btnModalConfirmar.disabled = false;
-          btnModalConfirmar.textContent = '✅ Confirmar';
-          btnModalConfirmar.style.background = '#00ff00';
+          window.location.href = '/';
         }, 1000);
 
       } catch (error) {
