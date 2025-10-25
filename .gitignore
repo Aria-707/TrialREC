@@ -7,3 +7,4 @@ asistenciaconreconocimiento-firebase-adminsdk.json
 .env
 *.xml
 salon_config.txt
+set_admin.py

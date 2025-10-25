@@ -32,6 +32,53 @@
       font-size: 16px;
     }
 
+    .auth-section {
+      background: rgba(255, 0, 0, 0.1);
+      border: 2px solid #ff0000;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .auth-section h3 {
+      color: #ff0000;
+      margin: 0 0 15px 0;
+      text-align: center;
+    }
+
+    .auth-section input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      font-size: 16px;
+      border: 2px solid #ff0000;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.95);
+      box-sizing: border-box;
+    }
+
+    .btn-verificar {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      background: #ff0000;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-verificar:hover {
+      background: #cc0000;
+    }
+
+    .btn-verificar:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+
     .form-group {
       margin-bottom: 30px;
     }
@@ -115,24 +162,14 @@
       text-align: center;
     }
 
-    .salon-info {
-      background: rgba(0, 255, 0, 0.1);
-      border: 2px solid #00ff00;
-      border-radius: 10px;
-      padding: 15px;
-      margin-bottom: 20px;
-      color: white;
-    }
-
-    .salon-info h3 {
-      margin: 0 0 10px 0;
-      color: #00ff00;
-    }
-
     .icon-classroom {
       font-size: 60px;
       text-align: center;
       margin-bottom: 20px;
+    }
+
+    .hidden {
+      display: none !important;
     }
   </style>
 </head>
@@ -143,16 +180,24 @@
       
       <div class="config-header">
         <h1>Configuración del Sistema</h1>
-        <p>Selecciona el salón donde se tomará asistencia</p>
+        <p>Autenticación de administrador requerida</p>
       </div>
 
       <div id="error-container"></div>
 
-      <div id="loading" class="loading">
+      <!-- SECCIÓN DE AUTENTICACIÓN -->
+      <div id="auth-section" class="auth-section">
+        <h3>🔐 Verificación de Administrador</h3>
+        <input type="email" id="admin-email" placeholder="Correo electrónico">
+        <input type="password" id="admin-password" placeholder="Contraseña">
+        <button id="btn-verificar" class="btn-verificar">Verificar Credenciales</button>
+      </div>
+
+      <div id="loading" class="loading hidden">
         ⏳ Cargando salones disponibles...
       </div>
 
-      <div id="form-container" style="display: none;">
+      <div id="form-container" class="hidden">
         <div class="form-group">
           <label for="salon-select">
             📍 Salón de clases:
@@ -173,16 +218,86 @@
     <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
   </div>
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
   <script>
+    // CONFIGURACIÓN FIREBASE - REEMPLAZA CON TUS CREDENCIALES
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    const authSection = document.getElementById('auth-section');
     const loadingDiv = document.getElementById('loading');
     const formContainer = document.getElementById('form-container');
     const errorContainer = document.getElementById('error-container');
     const salonSelect = document.getElementById('salon-select');
     const btnConfirmar = document.getElementById('btn-confirmar');
+    const btnVerificar = document.getElementById('btn-verificar');
+    const adminEmail = document.getElementById('admin-email');
+    const adminPassword = document.getElementById('admin-password');
 
-    // ============================================
+    let isAdmin = false;
+
+    // VERIFICAR CREDENCIALES DE ADMIN
+    async function verificarAdmin() {
+      const email = adminEmail.value.trim();
+      const password = adminPassword.value.trim();
+
+      if (!email || !password) {
+        mostrarError('⚠️ Por favor ingresa correo y contraseña');
+        return;
+      }
+
+      btnVerificar.disabled = true;
+      btnVerificar.textContent = '⏳ Verificando...';
+      errorContainer.innerHTML = '';
+
+      try {
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+
+        const idTokenResult = await user.getIdTokenResult();
+        
+        if (idTokenResult.claims.admin === true) {
+          isAdmin = true;
+          authSection.classList.add('hidden');
+          loadingDiv.classList.remove('hidden');
+          await cargarSalones();
+        } else {
+          throw new Error('No tienes permisos de administrador');
+        }
+
+      } catch (error) {
+        console.error('Error de autenticación:', error);
+        let mensaje = '❌ Error: ';
+        
+        if (error.code === 'auth/user-not-found') {
+          mensaje += 'Usuario no encontrado';
+        } else if (error.code === 'auth/wrong-password') {
+          mensaje += 'Contraseña incorrecta';
+        } else if (error.code === 'auth/invalid-email') {
+          mensaje += 'Correo electrónico inválido';
+        } else {
+          mensaje += error.message;
+        }
+        
+        mostrarError(mensaje);
+        btnVerificar.disabled = false;
+        btnVerificar.textContent = 'Verificar Credenciales';
+      }
+    }
+
     // CARGAR SALONES DISPONIBLES
-    // ============================================
     async function cargarSalones() {
       try {
         const response = await fetch('/api/salones');
@@ -194,11 +309,10 @@
 
         if (data.salones.length === 0) {
           mostrarError('⚠️ No se encontraron salones configurados en el sistema');
-          loadingDiv.style.display = 'none';
+          loadingDiv.classList.add('hidden');
           return;
         }
 
-        // Poblar select
         data.salones.forEach(salon => {
           const option = document.createElement('option');
           option.value = salon;
@@ -206,30 +320,30 @@
           salonSelect.appendChild(option);
         });
 
-        // Mostrar formulario
-        loadingDiv.style.display = 'none';
-        formContainer.style.display = 'block';
+        loadingDiv.classList.add('hidden');
+        formContainer.classList.remove('hidden');
 
         console.log(`✔ ${data.salones.length} salones cargados`);
 
       } catch (error) {
         console.error('Error cargando salones:', error);
         mostrarError('❌ Error: ' + error.message);
-        loadingDiv.style.display = 'none';
+        loadingDiv.classList.add('hidden');
       }
     }
 
-    // ============================================
     // HABILITAR/DESHABILITAR BOTÓN
-    // ============================================
     salonSelect.addEventListener('change', () => {
       btnConfirmar.disabled = !salonSelect.value;
     });
 
-    // ============================================
     // CONFIRMAR CONFIGURACIÓN
-    // ============================================
     async function confirmarConfiguracion() {
+      if (!isAdmin) {
+        mostrarError('❌ Debes autenticarte como administrador primero');
+        return;
+      }
+
       const salon = salonSelect.value;
 
       if (!salon) {
@@ -253,13 +367,11 @@
           throw new Error(data.error || 'Error al configurar salón');
         }
 
-        // Éxito
         btnConfirmar.textContent = '✅ ¡Configurado!';
         btnConfirmar.style.background = '#00ff00';
 
         console.log(`✔ Salón configurado: ${salon}`);
 
-        // Redirigir a página principal
         setTimeout(() => {
           window.location.href = '/';
         }, 1000);
@@ -272,9 +384,7 @@
       }
     }
 
-    // ============================================
     // MOSTRAR ERROR
-    // ============================================
     function mostrarError(mensaje) {
       errorContainer.innerHTML = `
         <div class="error-message">
@@ -283,17 +393,19 @@
       `;
     }
 
-    // ============================================
     // EVENT LISTENERS
-    // ============================================
     btnConfirmar.addEventListener('click', confirmarConfiguracion);
+    btnVerificar.addEventListener('click', verificarAdmin);
 
-    // ============================================
+    adminPassword.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        verificarAdmin();
+      }
+    });
+
     // INICIALIZACIÓN
-    // ============================================
     window.addEventListener('DOMContentLoaded', () => {
       console.log('🚀 Página de configuración cargada');
-      cargarSalones();
     });
   </script>
 </body>
