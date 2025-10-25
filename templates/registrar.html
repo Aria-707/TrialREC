@@ -2,13 +2,119 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Reconocimiento Facial Flask</title>
+  <title>Registrar Estudiante - Reconocimiento Facial</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
+  <style>
+    .progreso-container {
+      margin-top: 20px;
+      width: 100%;
+      max-width: 800px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      padding: 15px;
+      display: none;
+    }
+    
+    .progreso-bar {
+      width: 100%;
+      height: 30px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 15px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .progreso-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00ff00, #00aa00);
+      width: 0%;
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+    
+    .progreso-texto {
+      color: white;
+      text-align: center;
+      margin-top: 10px;
+      font-size: 18px;
+    }
+    
+    .mensaje-instrucciones {
+      background: rgba(255, 255, 0, 0.3);
+      border: 2px solid yellow;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 20px 0;
+      color: white;
+      max-width: 800px;
+    }
+    
+    .mensaje-instrucciones h3 {
+      margin-top: 0;
+      color: yellow;
+    }
+    
+    .form-container {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+    
+    .form-container input {
+      padding: 10px;
+      font-size: 16px;
+      border: 2px solid #00ff00;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.9);
+      margin-right: 10px;
+      min-width: 250px;
+    }
+    
+    .form-container button {
+      padding: 10px 30px;
+      font-size: 16px;
+      background: #00ff00;
+      color: black;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    
+    .form-container button:hover {
+      background: #00aa00;
+      transform: scale(1.05);
+    }
+    
+    .form-container button:disabled {
+      background: #666;
+      color: #999;
+      cursor: not-allowed;
+      transform: none;
+    }
+  </style>
 </head>
 <body>
   <div class="contenedor-principal">
-    <div class="texto-bienvenida">Todo listo para reconocerte.</div>
+    <div class="texto-bienvenida">Registrar Nuevo Estudiante</div>
+
+    <div class="mensaje-instrucciones">
+      <h3>📸 Instrucciones:</h3>
+      <ol style="text-align: left; margin: 10px 0;">
+        <li>Ingresa tu nombre completo</li>
+        <li>Haz clic en "Iniciar Captura"</li>
+        <li>Mantén tu rostro frente a la cámara</li>
+        <li>Mueve ligeramente la cabeza (arriba, abajo, izquierda, derecha)</li>
+        <li>El sistema capturará 100 fotos automáticamente</li>
+      </ol>
+    </div>
 
     <div id="container">
       <video id="camara-video" autoplay playsinline></video>
@@ -18,174 +124,271 @@
       </div>
     </div>
 
-     <form action="/registrer" method="post">
-        <label for="estudiante">Nombre:</label>
-        <input type="text" id="estudiante" name="estudiante" required>
-        <button type="submit" id="capturar-entrenar-btn">Capturar y entrenar</button>
+    <div class="form-container">
+      <input type="text" id="estudiante" placeholder="Nombre completo del estudiante" required>
+      <button id="btn-capturar">Iniciar Captura</button>
+    </div>
 
-    </form>
+    <div class="progreso-container" id="progreso-container">
+      <div class="progreso-bar">
+        <div class="progreso-fill" id="progreso-fill">0%</div>
+      </div>
+      <div class="progreso-texto" id="progreso-texto">Preparando...</div>
+    </div>
+
+    <p id="resultado-reconocimiento" style="font-size: 20px; margin-top: 20px;"></p>
+  </div>
 
   <div class="logo-inferior">
     <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
   </div>
 
-
   <script>
-
-    
-    
-    let capturando = false;
-
     const video = document.getElementById('camara-video');
     const canvas = document.getElementById('overlay');
     const ctx = canvas.getContext('2d');
+    const nombreInput = document.getElementById('estudiante');
+    const btnCapturar = document.getElementById('btn-capturar');
     const resultado = document.getElementById('resultado-reconocimiento');
-    const backendUrl = '/registro';
+    const progresoContainer = document.getElementById('progreso-container');
+    const progresoFill = document.getElementById('progreso-fill');
+    const progresoTexto = document.getElementById('progreso-texto');
 
+    let capturando = false;
+    let deteccionInterval = null;
 
-
-
+    // ============================================
+    // INICIAR CÁMARA
+    // ============================================
     async function iniciarCamara() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        });
         video.srcObject = stream;
         await video.play();
-        // Ajusta canvas al tamaño del video
-        canvas.width  = video.videoWidth;
+        
+        canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        setInterval(enviarFotograma, 2000);
+        
+        console.log('✔ Cámara iniciada:', canvas.width, 'x', canvas.height);
+        
+        // Iniciar detección de rostros en tiempo real
+        iniciarDeteccionRostros();
+        
       } catch (err) {
-        resultado.textContent = "No se pudo acceder a la cámara.";
+        resultado.textContent = "❌ No se pudo acceder a la cámara";
+        resultado.style.color = 'red';
         console.error("Error cámara:", err);
       }
     }
 
-    function dibujar(box, reconocido, confianza, nombre) {
-  // Limpia el canvas
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // ============================================
+    // DETECCIÓN DE ROSTROS EN TIEMPO REAL
+    // ============================================
+    function iniciarDeteccionRostros() {
+      deteccionInterval = setInterval(async () => {
+        if (capturando) return; // No detectar mientras se captura
+        
+        const tmp = document.createElement('canvas');
+        tmp.width = video.videoWidth;
+        tmp.height = video.videoHeight;
+        const tmpCtx = tmp.getContext('2d');
+        tmpCtx.drawImage(video, 0, 0);
+        const imgBase64 = tmp.toDataURL('image/jpeg');
 
-  // box = [x, y, w, h]
-  const [x, y, w, h] = box;
-  const mirroredX = canvas.width - x - w;
+        try {
+          const res = await fetch('/detectar_rostro', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: imgBase64 })
+          });
+          
+          const data = await res.json();
+          
+          if (data.rostro_detectado && data.box) {
+            dibujarRostro(data.box, 'red', 'Posiciona tu rostro');
+          } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+          }
+        } catch (e) {
+          // Silencioso - no mostrar errores de detección
+        }
+      }, 500); // Cada 500ms
+    }
 
-  // --- NUEVO: si ya estamos en modo "capturando", pintamos en verde y texto "Capturando..." ---
-  if (capturando) {
-    ctx.lineWidth   = 3;
-    ctx.strokeStyle = 'green';
-    ctx.strokeRect(mirroredX, y, w, h);
+    // ============================================
+    // DIBUJAR ROSTRO EN CANVAS
+    // ============================================
+    function dibujarRostro(box, color, texto) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const [x, y, w, h] = box;
+      const mirroredX = canvas.width - x - w;
 
-    ctx.fillStyle = 'green';
-    ctx.font      = '20px Arial';
-    ctx.fillText('Capturando...', mirroredX, y - 10);
-    return;  // salimos para no ejecutar el dibujo rojo original
-  }
-  // --- FIN NUEVO ---
+      // Rectángulo
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = color;
+      ctx.strokeRect(mirroredX, y, w, h);
 
-  // Dibuja el rectángulo (contorno) espejado en rojo
-  ctx.lineWidth   = 3;
-  ctx.strokeStyle = 'red';
-  ctx.strokeRect(mirroredX, y, w, h);
+      // Fondo del texto
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      const textWidth = ctx.measureText(texto).width;
+      ctx.fillRect(mirroredX, y - 35, textWidth + 20, 30);
 
-  // Texto fijo "Ingresa tu nombre" en rojo
-  ctx.fillStyle = 'red';
-  ctx.font      = '20px Arial';
-  ctx.fillText(
-    'Ingresa tu nombre',
-    mirroredX,
-    y - 10
-  );
-}
+      // Texto
+      ctx.fillStyle = color;
+      ctx.font = 'bold 20px Arial';
+      ctx.fillText(texto, mirroredX + 10, y - 12);
+    }
 
-    async function enviarFotograma() {
+    // ============================================
+    // PROCESO DE CAPTURA
+    // ============================================
+    async function iniciarCaptura() {
+      const nombre = nombreInput.value.trim();
+      
+      if (!nombre) {
+        alert('❌ Por favor ingresa tu nombre');
+        return;
+      }
+
+      // Confirmar
+      if (!confirm(`¿Iniciar captura para "${nombre}"?\n\nAsegúrate de estar frente a la cámara.`)) {
+        return;
+      }
+
+      // Preparar UI
+      capturando = true;
+      btnCapturar.disabled = true;
+      nombreInput.disabled = true;
+      progresoContainer.style.display = 'block';
+      resultado.textContent = '';
+
+      const totalFotos = 100;
+      const intervaloCaptura = 100; // ms entre fotos
+      let fotosCapturadas = 0;
+      let fotosGuardadas = 0;
+
+      // Canvas temporal para captura
       const tmp = document.createElement('canvas');
-      tmp.width  = video.videoWidth;
+      tmp.width = video.videoWidth;
       tmp.height = video.videoHeight;
       const tmpCtx = tmp.getContext('2d');
-      tmpCtx.drawImage(video, 0, 0);
-      const imgBase64 = tmp.toDataURL('image/jpeg');
+
+      console.log('🎬 Iniciando captura de 100 fotos...');
+
+      // Bucle de captura
+      for (let i = 0; i < totalFotos; i++) {
+        // Capturar frame
+        tmpCtx.drawImage(video, 0, 0, tmp.width, tmp.height);
+        const foto = tmp.toDataURL('image/jpeg', 0.8);
+
+        // Enviar al servidor
+        try {
+          const res = await fetch('/guardar_foto', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              estudiante: nombre, 
+              foto: foto 
+            })
+          });
+
+          const data = await res.json();
+          
+          if (data.ok) {
+            fotosGuardadas++;
+          }
+        } catch (e) {
+          console.error('Error guardando foto', i, ':', e);
+        }
+
+        fotosCapturadas++;
+
+        // Actualizar progreso
+        const porcentaje = Math.round((fotosCapturadas / totalFotos) * 100);
+        progresoFill.style.width = porcentaje + '%';
+        progresoFill.textContent = porcentaje + '%';
+        progresoTexto.textContent = `Capturando foto ${fotosCapturadas} de ${totalFotos} (${fotosGuardadas} guardadas)`;
+
+        // Feedback visual
+        dibujarRostro([0, 0, tmp.width, tmp.height], '#00ff00', `Capturando... ${fotosCapturadas}/${totalFotos}`);
+
+        // Esperar antes de siguiente captura
+        await new Promise(resolve => setTimeout(resolve, intervaloCaptura));
+      }
+
+      console.log(`✔ Captura completada: ${fotosGuardadas}/${totalFotos} fotos guardadas`);
+
+      // Entrenar modelo
+      progresoTexto.textContent = '🤖 Entrenando modelo de reconocimiento...';
+      progresoTexto.style.color = 'yellow';
 
       try {
-        const res = await fetch(backendUrl, {
+        const res = await fetch('/entrenar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: imgBase64 })
+          body: JSON.stringify({ estudiante: nombre })
         });
+
         const data = await res.json();
 
-        if (data.estado === 'reconocido') {
-          resultado.textContent = `✔ ${data.estudiante}`;
-          dibujar(data.box, true, data.confianza, data.estudiante);
-        } else if (data.estado === 'desconocido') {
-          dibujar(data.box, false, data.confianza);
+        if (data.success) {
+          progresoTexto.textContent = '✅ ¡Registro completado exitosamente!';
+          progresoTexto.style.color = '#00ff00';
+          resultado.textContent = `✅ ${nombre} registrado correctamente`;
+          resultado.style.color = '#00ff00';
+
+          // Redirigir después de 2 segundos
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
         } else {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          throw new Error(data.error || 'Error en entrenamiento');
         }
       } catch (e) {
-        console.error('Error:', e);
+        console.error('Error en entrenamiento:', e);
+        progresoTexto.textContent = '❌ Error en el entrenamiento';
+        progresoTexto.style.color = 'red';
+        resultado.textContent = '❌ Error: ' + e.message;
+        resultado.style.color = 'red';
+
+        // Rehabilitar botón
+        btnCapturar.disabled = false;
+        nombreInput.disabled = false;
+        capturando = false;
       }
     }
-    
-document
-  .getElementById('capturar-entrenar-btn')
-  .addEventListener('click', () => {
-    capturando = true;
-    // Opcional: forzar un redraw inmediato si ya tienes box disponible
-    // dibujar(ultimoBox, false, 0, '');
-  });
 
-  // ... tu código existente de iniciarCamara(), dibujar(), etc. ...
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+    btnCapturar.addEventListener('click', iniciarCaptura);
 
-  const nombreInput = document.getElementById('estudiante');
-  const btn = document.getElementById('capturar-entrenar-btn');
-
-  btn.addEventListener('click', async (e) => {
-    e.preventDefault();           // ¡Importante!
-    capturando = true;            // pasamos a modo “verde/‘Capturando…’”
-    const nombre = nombreInput.value.trim();
-    if (!nombre) return alert("Ingresa nombre");
-
-    // Capturar 100 fotos en 100ms intervalo
-    let tomadas = 0;
-    const tmp = document.createElement('canvas');
-    tmp.width  = video.videoWidth;
-    tmp.height = video.videoHeight;
-    const tmpCtx = tmp.getContext('2d');
-
-    btn.disabled = true;
-    btn.textContent = 'Capturando...';
-
-    while (tomadas < 100) {
-      tmpCtx.drawImage(video, 0, 0, tmp.width, tmp.height);
-      const foto = tmp.toDataURL('image/jpeg');
-
-      // Enviar cada foto
-      await fetch('/guardar_foto', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ estudiante: nombre, foto })
-      });
-
-      tomadas++;
-      // redibuja para ver el recuadro verde
-      dibujar([0,0, tmp.width, tmp.height], true, 0, '');
-      await new Promise(r=>setTimeout(r, 100));  // 100 ms
-    }
-
-    // Una vez tomadas, disparamos tu endpoint existente para entrenar y luego redirigir
-    await fetch('/registrer', {
-      method: 'POST',
-      headers: {'Content-Type':'application/x-www-form-urlencoded'},
-      body: new URLSearchParams({ estudiante: nombre })
+    nombreInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        iniciarCaptura();
+      }
     });
 
-    // Recarga la página principal de reconocimiento
-    window.location.href = '/';
-  });
+    // ============================================
+    // INICIALIZACIÓN
+    // ============================================
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 Página de registro cargada');
+      iniciarCamara();
+    });
 
-
-
-
-    iniciarCamara();
+    // Limpiar al salir
+    window.addEventListener('beforeunload', () => {
+      if (deteccionInterval) {
+        clearInterval(deteccionInterval);
+      }
+    });
   </script>
 </body>
 </html>
