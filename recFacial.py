@@ -118,19 +118,33 @@ def sanitizar_nombre_filesystem(nombre):
     
     return nombre
 
-# ==================== FUNCIÓN: OBTENER CURSO ACTIVO ====================
+# ==================== FUNCIÓN: OBTENER CURSO ACTIVO CON VENTANA ====================
 def obtener_curso_activo(profesor_id=None):
-    """Obtiene el curso activo según el horario actual."""
+    """
+    Obtiene el curso activo según el horario actual.
+    
+    VENTANA DE REGISTRO:
+    - Desde 5 min ANTES del inicio
+    - Hasta 15 min ANTES del final
+    
+    Ejemplo: Clase 07:00-09:00
+    - Registro permitido: 06:55 - 08:45
+    
+    Returns:
+        tuple: (curso_id, hora_inicio_real) o (None, None) si no hay curso
+    """
     try:
+        from datetime import timedelta
+        
         ahora = datetime.now()
         dia_ingles = ahora.strftime('%A')
         dia_espanol = DIAS_INGLES_A_ESPANOL.get(dia_ingles, dia_ingles)
-        hora_actual = ahora.strftime('%H:%M')
+        hora_actual_str = ahora.strftime('%H:%M')
         
         print(f"\n=== BUSCANDO CURSO ACTIVO ===")
         print(f"Día (español): {dia_espanol}")
         print(f"Día (inglés): {dia_ingles}")
-        print(f"Hora: {hora_actual}")
+        print(f"Hora actual: {hora_actual_str}")
         
         cursos_ref = db.collection('courses')
         if profesor_id:
@@ -148,45 +162,80 @@ def obtener_curso_activo(profesor_id=None):
             
             for horario in schedule:
                 dia_horario = horario.get('day', '')
-                hora_inicio = horario.get('iniTime', '00:00')
-                hora_fin = horario.get('endTime', '23:59')
+                hora_inicio_str = horario.get('iniTime', '00:00')
+                hora_fin_str = horario.get('endTime', '23:59')
                 
-                print(f"    Schedule: {dia_horario} {hora_inicio}-{hora_fin}")
+                print(f"    Schedule: {dia_horario} {hora_inicio_str}-{hora_fin_str}")
                 
-                # Comparar día (acepta español o inglés)
+                # Comparar día
                 if dia_horario == dia_espanol or dia_horario == dia_ingles:
                     print(f"      ✓ Día coincide")
-                    # Comparar hora (string comparison funciona con formato HH:MM)
-                    if hora_inicio <= hora_actual <= hora_fin:
-                        print(f"      ✓ Hora dentro del rango")
+                    
+                    # Convertir strings a datetime para cálculos
+                    hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M')
+                    hora_fin = datetime.strptime(hora_fin_str, '%H:%M')
+                    hora_actual = datetime.strptime(hora_actual_str, '%H:%M')
+                    
+                    # VENTANA DE REGISTRO:
+                    # - Inicio: 5 min ANTES del inicio de clase
+                    # - Fin: 15 min ANTES del final de clase
+                    ventana_inicio = hora_inicio - timedelta(minutes=5)
+                    ventana_fin = hora_fin - timedelta(minutes=15)
+                    
+                    print(f"      Ventana de registro: {ventana_inicio.strftime('%H:%M')} - {ventana_fin.strftime('%H:%M')}")
+                    
+                    # Verificar si está dentro de la ventana
+                    if ventana_inicio <= hora_actual <= ventana_fin:
+                        print(f"      ✓ Hora dentro del rango de registro")
                         print(f"  [✔] ¡CURSO ACTIVO ENCONTRADO: {curso_id}!")
-                        return curso_id
+                        return (curso_id, hora_inicio_str)
                     else:
-                        print(f"      ✗ Hora fuera de rango: {hora_actual} no está entre {hora_inicio} y {hora_fin}")
+                        if hora_actual < ventana_inicio:
+                            print(f"      ✗ Demasiado temprano (antes de {ventana_inicio.strftime('%H:%M')})")
+                        else:
+                            print(f"      ✗ Demasiado tarde (después de {ventana_fin.strftime('%H:%M')})")
         
-        print(f"\n[!] No se encontró curso activo para {dia_espanol} a las {hora_actual}")
-        print(f"    Usando curso por defecto: '0000'")
-        return '0000'
+        print(f"\n[!] No se encontró curso activo para {dia_espanol} a las {hora_actual_str}")
+        print(f"    NO se registrará asistencia (no hay cursos por defecto)")
+        return (None, None)
         
     except Exception as e:
         print(f"[✖] ERROR obteniendo curso activo: {e}")
         import traceback
         traceback.print_exc()
-        return '0000'
+        return (None, None)
 
 
 # ==================== FUNCIÓN: REGISTRAR ASISTENCIA MEJORADA ====================
-def registrar_asistencia(nombre_estudiante, courseID=None):
+def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=None):
     """
     Registra la asistencia en Firestore.
-    MEJORADO: Busca por nombre normalizado e insensible a mayúsculas/espacios.
+    MEJORADO: 
+    - Maneja caso sin curso activo
+    - Detecta llegadas tarde (>30 min después del inicio)
+    - Agrega campo 'late' booleano
+    
+    Args:
+        nombre_estudiante: Nombre del estudiante
+        courseID: ID del curso (si es None, se busca automáticamente)
+        hora_inicio_clase: Hora de inicio real de la clase (formato "HH:MM")
     """
     try:
+        from datetime import timedelta
+        
+        # Si no se proporciona courseID, obtenerlo automáticamente
         if not courseID:
-            courseID = obtener_curso_activo()
+            courseID, hora_inicio_clase = obtener_curso_activo()
+        
+        # VALIDACIÓN: Si no hay curso activo, NO registrar
+        if not courseID:
+            print(f"[!] NO SE REGISTRA ASISTENCIA: No hay curso activo en este momento")
+            print(f"    El reconocimiento seguirá funcionando pero no guardará registros")
+            return False
         
         fecha_hoy = datetime.now().strftime('%Y-%m-%d')
-        hora_actual = datetime.now().strftime('%H:%M')
+        hora_actual_str = datetime.now().strftime('%H:%M')
+        hora_actual = datetime.now()
         
         print(f"\n=== REGISTRANDO ASISTENCIA ===")
         print(f"Estudiante recibido: '{nombre_estudiante}'")
@@ -195,13 +244,12 @@ def registrar_asistencia(nombre_estudiante, courseID=None):
         nombre_normalizado = normalizar_nombre(nombre_estudiante)
         print(f"Nombre normalizado: '{nombre_normalizado}'")
         print(f"Fecha: {fecha_hoy}")
-        print(f"Hora: {hora_actual}")
+        print(f"Hora registro: {hora_actual_str}")
         print(f"Curso: {courseID}")
+        print(f"Hora inicio clase: {hora_inicio_clase}")
         
-        # ESTRATEGIA 1: Buscar por nombre exacto (case-insensitive)
+        # Buscar estudiante en Firebase
         personas_ref = db.collection('person')
-        
-        # Intentar búsqueda exacta primero
         query = personas_ref.where('type', '==', 'Estudiante').get()
         
         estudiante_doc = None
@@ -222,7 +270,6 @@ def registrar_asistencia(nombre_estudiante, courseID=None):
         if not estudiante_doc:
             print(f"[✖] ERROR: No se encontró estudiante '{nombre_estudiante}'")
             print(f"    Nombre normalizado buscado: '{nombre_normalizado}'")
-            print(f"    Verifica que el nombre en Firebase sea exactamente igual")
             return False
         
         estudianteID = estudiante_doc.id
@@ -241,18 +288,58 @@ def registrar_asistencia(nombre_estudiante, courseID=None):
             estudiantes_curso = curso_data.get('estudianteID', [])
             
             if estudianteID not in estudiantes_curso:
-                print(f"[!] ADVERTENCIA: Estudiante {estudianteID} no está inscrito en curso {courseID}")
+                print(f"[!] ADVERTENCIA: Estudiante {estudianteID} no inscrito en curso {courseID}")
                 print(f"    Estudiantes del curso: {estudiantes_curso}")
+        
+        # ========== CALCULAR SI LLEGÓ TARDE ==========
+        # REGLA: Se considera TARDE si llegó más de 30 min después del inicio
+        # Ejemplo: Clase a las 07:00
+        #   - A tiempo: 06:55 - 07:30
+        #   - Tarde: 07:31 en adelante
+        
+        llegada_tarde = False
+        
+        if hora_inicio_clase:
+            try:
+                # Convertir hora de inicio a datetime
+                hora_inicio = datetime.strptime(hora_inicio_clase, '%H:%M')
+                hora_actual_dt = datetime.strptime(hora_actual_str, '%H:%M')
+                
+                # Calcular diferencia en minutos
+                diferencia = (hora_actual_dt - hora_inicio).total_seconds() / 60
+                
+                # Se considera tarde si llegó MÁS DE 30 minutos después del inicio
+                if diferencia > 30:
+                    llegada_tarde = True
+                    print(f"⚠️  LLEGADA TARDE DETECTADA")
+                    print(f"    Hora inicio clase: {hora_inicio_clase}")
+                    print(f"    Hora llegada: {hora_actual_str}")
+                    print(f"    Diferencia: {int(diferencia)} minutos después del inicio")
+                    print(f"    Límite puntualidad: 30 minutos")
+                else:
+                    # Llegó a tiempo o incluso antes
+                    if diferencia < 0:
+                        print(f"✓ Llegada ANTICIPADA")
+                        print(f"    Llegó {int(abs(diferencia))} minutos ANTES del inicio")
+                    else:
+                        print(f"✓ Llegada A TIEMPO")
+                        print(f"    Llegó {int(diferencia)} minutos después del inicio (dentro del límite)")
+                    
+            except Exception as e:
+                print(f"⚠️ Error calculando tardanza: {e}")
+                # Si hay error, por defecto no marca como tarde
+                llegada_tarde = False
         
         # Referencia al documento de asistencia
         asistencia_ref = db.collection('courses').document(courseID).collection('assistances').document(fecha_hoy)
         asistencia_doc = asistencia_ref.get()
         
-        # Datos de asistencia
+        # ========== DATOS DE ASISTENCIA CON CAMPO "late" ==========
         datos_asistencia = {
             estudianteID: {
                 'estadoAsistencia': 'Presente',
-                'horaRegistro': hora_actual
+                'horaRegistro': hora_actual_str,
+                'late': llegada_tarde  # ← NUEVO CAMPO
             }
         }
         
@@ -273,6 +360,8 @@ def registrar_asistencia(nombre_estudiante, courseID=None):
             print(f"[✔] Asistencia CREADA")
         
         print(f"    Ruta: courses/{courseID}/assistances/{fecha_hoy}/{estudianteID}")
+        print(f"    Estado: Presente")
+        print(f"    Tarde: {'Sí ⚠️' if llegada_tarde else 'No ✓'}")
         print(f"=== REGISTRO EXITOSO ===\n")
         return True
         
@@ -404,7 +493,6 @@ def registro():
             nombre_carpeta = imagePaths[label]
             
             # Convertir nombre de carpeta a nombre real
-            # Ejemplo: "SHARON_ARIADNA_RINCON_GUERRERO" → "SHARON ARIADNA RINCON GUERRERO"
             nombre_estudiante = nombre_carpeta.replace('_', ' ')
             
             if nombre_estudiante not in tiempos_reconocimiento:
@@ -412,7 +500,15 @@ def registro():
             elif time.time() - tiempos_reconocimiento[nombre_estudiante] >= duracion_reconocimiento:
                 if nombre_estudiante not in estudiantes_reconocidos:
                     estudiantes_reconocidos.add(nombre_estudiante)
-                    registrar_asistencia(nombre_estudiante)
+                    
+                    # Obtener curso activo y hora de inicio
+                    courseID, hora_inicio = obtener_curso_activo()
+                    
+                    # Solo registrar si hay curso activo
+                    if courseID:
+                        registrar_asistencia(nombre_estudiante, courseID, hora_inicio)
+                    else:
+                        print(f"[!] Reconocido '{nombre_estudiante}' pero NO hay curso activo - no se registra")
             
             return jsonify({
                 "estado": "reconocido",
@@ -629,19 +725,16 @@ def entrenar():
         
         print(f"✔ Modelo entrenado con {len(nuevas_rutas)} imágenes")
         
-        # SOLO eliminar las fotos individuales, NO la carpeta
-        print(f"🗑️  Limpiando fotos temporales (manteniendo carpeta)...")
-        for ruta in nuevas_rutas:
-            try:
-                if os.path.exists(ruta):
-                    os.remove(ruta)
-                    print(f"  ✔ Eliminada: {os.path.basename(ruta)}")
-            except Exception as e:
-                print(f"  ⚠️ Error eliminando {ruta}: {e}")
+        # CAMBIO: NO eliminar las fotos - mantenerlas por seguridad
+        print(f"💾 Fotos mantenidas en: {personPath}")
+        print(f"   Total de imágenes: {len(archivos)}")
+        print(f"   Esto permite reentrenar o mejorar el modelo en el futuro")
         
-        print(f"✔ Carpeta '{nombre_filesystem}' mantenida en Data/")
         print(f"{'='*60}")
         print(f"✅ ENTRENAMIENTO COMPLETADO")
+        print(f"   • Carpeta: '{nombre_filesystem}'")
+        print(f"   • Imágenes preservadas: {len(archivos)}")
+        print(f"   • Modelo guardado en: {model_path}")
         print(f"{'='*60}\n")
         
         return jsonify({
@@ -664,7 +757,15 @@ def entrenar():
 @app.route('/test_curso')
 def test_curso():
     """Endpoint para probar la detección del curso activo"""
-    curso_id = obtener_curso_activo()
+    curso_id, hora_inicio = obtener_curso_activo()
+    
+    if not curso_id:
+        return jsonify({
+            "success": False,
+            "mensaje": "No hay curso activo en este momento",
+            "courseID": None,
+            "hora_inicio": None
+        })
     
     curso_ref = db.collection('courses').document(curso_id)
     curso_doc = curso_ref.get()
@@ -674,12 +775,14 @@ def test_curso():
         return jsonify({
             "success": True,
             "courseID": curso_id,
-            "curso": curso_data
+            "hora_inicio": hora_inicio,
+            "curso": curso_data,
+            "mensaje": "Curso activo encontrado"
         })
     else:
         return jsonify({
             "success": False,
-            "error": "Curso no encontrado",
+            "error": "Curso encontrado pero no existe en BD",
             "courseID": curso_id
         })
 
