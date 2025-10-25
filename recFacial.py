@@ -11,6 +11,7 @@ from flask_cors import CORS
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
+import sys
 
 # Inicializar Firebase
 cred = credentials.Certificate('asistenciaconreconocimiento-firebase-adminsdk.json')
@@ -23,6 +24,9 @@ CORS(app)
 # Rutas
 dataPath = os.path.join(os.path.dirname(__file__), 'Data')
 model_path = os.path.join('backend', 'modeloLBPHReconocimientoOpencv.xml')
+
+# Asegurar que existe la carpeta Data
+os.makedirs(dataPath, exist_ok=True)
 
 # Clasificadores
 faceClassif = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -61,17 +65,65 @@ DIAS_ESPANOL_A_INGLES = {
 
 DIAS_INGLES_A_ESPANOL = {v: k for k, v in DIAS_ESPANOL_A_INGLES.items()}
 
+# ==================== FUNCIÓN: NORMALIZAR NOMBRE ====================
+def normalizar_nombre(nombre):
+    """
+    Normaliza un nombre para búsqueda en Firebase.
+    - Quita espacios extras
+    - Convierte a mayúsculas
+    - Quita tildes y acentos
+    - Mantiene espacios simples entre palabras
+    """
+    # Quitar espacios extras
+    nombre = nombre.strip()
+    nombre = ' '.join(nombre.split())
+    
+    # Quitar tildes y acentos
+    replacements = {
+        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+        'Ñ': 'N', 'ñ': 'n'
+    }
+    for orig, repl in replacements.items():
+        nombre = nombre.replace(orig, repl)
+    
+    # Convertir a mayúsculas
+    nombre = nombre.upper()
+    
+    return nombre
+
+# ==================== FUNCIÓN: SANITIZAR PARA FILESYSTEM ====================
+def sanitizar_nombre_filesystem(nombre):
+    """
+    Sanitiza un nombre SOLO para guardar en el filesystem.
+    Mantiene la esencia del nombre para coincidir con Firebase después.
+    """
+    # Quitar tildes comunes
+    replacements = {
+        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+        'Ñ': 'N', 'ñ': 'n'
+    }
+    for orig, repl in replacements.items():
+        nombre = nombre.replace(orig, repl)
+    
+    # Quitar caracteres especiales EXCEPTO espacios
+    nombre = re.sub(r'[^\w\s-]', '', nombre)
+    
+    # Espacios a guiones bajos
+    nombre = nombre.replace(' ', '_')
+    
+    # Todo a mayúsculas
+    nombre = nombre.upper()
+    
+    return nombre
+
 # ==================== FUNCIÓN: OBTENER CURSO ACTIVO ====================
 def obtener_curso_activo(profesor_id=None):
-    """
-    Obtiene el curso activo según el horario actual.
-    Compatible con tu estructura de schedule como array.
-    """
+    """Obtiene el curso activo según el horario actual."""
     try:
         ahora = datetime.now()
-        # Obtener día en inglés (Monday, Tuesday, etc.)
         dia_ingles = ahora.strftime('%A')
-        # Convertir a español
         dia_espanol = DIAS_INGLES_A_ESPANOL.get(dia_ingles, dia_ingles)
         hora_actual = ahora.strftime('%H:%M')
         
@@ -80,7 +132,6 @@ def obtener_curso_activo(profesor_id=None):
         print(f"Día (inglés): {dia_ingles}")
         print(f"Hora: {hora_actual}")
         
-        # Consultar cursos
         cursos_ref = db.collection('courses')
         if profesor_id:
             cursos_ref = cursos_ref.where('profesorID', '==', profesor_id)
@@ -94,30 +145,28 @@ def obtener_curso_activo(profesor_id=None):
             
             print(f"\n  Verificando curso: {curso_id}")
             print(f"  Nombre: {curso_data.get('nameCourse')}")
-            print(f"  Schedule: {schedule}")
             
-            # schedule es un array de objetos
             for horario in schedule:
                 dia_horario = horario.get('day', '')
                 hora_inicio = horario.get('iniTime', '00:00')
                 hora_fin = horario.get('endTime', '23:59')
                 
-                print(f"    - Día horario: {dia_horario}, {hora_inicio} - {hora_fin}")
+                print(f"    Schedule: {dia_horario} {hora_inicio}-{hora_fin}")
                 
-                # Comparar día (acepta tanto español como inglés)
+                # Comparar día (acepta español o inglés)
                 if dia_horario == dia_espanol or dia_horario == dia_ingles:
-                    # Comparar hora
+                    print(f"      ✓ Día coincide")
+                    # Comparar hora (string comparison funciona con formato HH:MM)
                     if hora_inicio <= hora_actual <= hora_fin:
-                        print(f"  [✔] ¡CURSO ACTIVO ENCONTRADO!")
-                        print(f"  ID: {curso_id}")
-                        print(f"  Horario: {dia_horario} {hora_inicio}-{hora_fin}")
-                        print(f"=== FIN BÚSQUEDA ===\n")
+                        print(f"      ✓ Hora dentro del rango")
+                        print(f"  [✔] ¡CURSO ACTIVO ENCONTRADO: {curso_id}!")
                         return curso_id
+                    else:
+                        print(f"      ✗ Hora fuera de rango: {hora_actual} no está entre {hora_inicio} y {hora_fin}")
         
-        print(f"[!] No se encontró curso activo para {dia_espanol} a las {hora_actual}")
+        print(f"\n[!] No se encontró curso activo para {dia_espanol} a las {hora_actual}")
         print(f"    Usando curso por defecto: '0000'")
-        print(f"=== FIN BÚSQUEDA ===\n")
-        return '0000'  # Tu curso de prueba
+        return '0000'
         
     except Exception as e:
         print(f"[✖] ERROR obteniendo curso activo: {e}")
@@ -126,14 +175,13 @@ def obtener_curso_activo(profesor_id=None):
         return '0000'
 
 
-# ==================== FUNCIÓN: REGISTRAR ASISTENCIA ====================
+# ==================== FUNCIÓN: REGISTRAR ASISTENCIA MEJORADA ====================
 def registrar_asistencia(nombre_estudiante, courseID=None):
     """
-    Registra la asistencia en: courses/{courseID}/assistances/{YYYY-MM-DD}/{estudianteID}
-    Compatible con tu estructura donde person tiene ID numérico como documento.
+    Registra la asistencia en Firestore.
+    MEJORADO: Busca por nombre normalizado e insensible a mayúsculas/espacios.
     """
     try:
-        # Si no se proporciona courseID, obtenerlo automáticamente
         if not courseID:
             courseID = obtener_curso_activo()
         
@@ -141,30 +189,50 @@ def registrar_asistencia(nombre_estudiante, courseID=None):
         hora_actual = datetime.now().strftime('%H:%M')
         
         print(f"\n=== REGISTRANDO ASISTENCIA ===")
-        print(f"Estudiante: {nombre_estudiante}")
+        print(f"Estudiante recibido: '{nombre_estudiante}'")
+        
+        # Normalizar el nombre recibido
+        nombre_normalizado = normalizar_nombre(nombre_estudiante)
+        print(f"Nombre normalizado: '{nombre_normalizado}'")
         print(f"Fecha: {fecha_hoy}")
         print(f"Hora: {hora_actual}")
         print(f"Curso: {courseID}")
         
-        # IMPORTANTE: Buscar estudiante por nombre
-        # Ajusta 'namePerson' al nombre exacto del campo en tu colección person
+        # ESTRATEGIA 1: Buscar por nombre exacto (case-insensitive)
         personas_ref = db.collection('person')
-        query = personas_ref.where('namePerson', '==', nombre_estudiante).limit(1)
-        resultados = query.get()
         
-        if not resultados:
-            print(f"[✖] ERROR: No se encontró estudiante '{nombre_estudiante}' en colección 'person'")
-            print(f"    Verifica que el nombre coincida exactamente con el campo 'namePerson'")
+        # Intentar búsqueda exacta primero
+        query = personas_ref.where('type', '==', 'Estudiante').get()
+        
+        estudiante_doc = None
+        for doc in query:
+            data = doc.to_dict()
+            nombre_db = data.get('namePerson', '')
+            nombre_db_normalizado = normalizar_nombre(nombre_db)
+            
+            print(f"  Comparando:")
+            print(f"    DB: '{nombre_db}' → '{nombre_db_normalizado}'")
+            print(f"    Buscado: '{nombre_estudiante}' → '{nombre_normalizado}'")
+            
+            if nombre_db_normalizado == nombre_normalizado:
+                estudiante_doc = doc
+                print(f"  ✔ ¡COINCIDENCIA ENCONTRADA!")
+                break
+        
+        if not estudiante_doc:
+            print(f"[✖] ERROR: No se encontró estudiante '{nombre_estudiante}'")
+            print(f"    Nombre normalizado buscado: '{nombre_normalizado}'")
+            print(f"    Verifica que el nombre en Firebase sea exactamente igual")
             return False
         
-        estudiante_doc = resultados[0]
         estudianteID = estudiante_doc.id
         estudiante_data = estudiante_doc.to_dict()
+        nombre_real = estudiante_data.get('namePerson', '')
         
         print(f"EstudianteID encontrado: {estudianteID}")
+        print(f"Nombre real en Firebase: '{nombre_real}'")
         
-        # Verificar si el curso tiene al estudiante inscrito
-        # Tu estructura tiene estudianteID en el curso, no courses en person
+        # Verificar si está inscrito en el curso
         curso_ref = db.collection('courses').document(courseID)
         curso_doc = curso_ref.get()
         
@@ -173,7 +241,7 @@ def registrar_asistencia(nombre_estudiante, courseID=None):
             estudiantes_curso = curso_data.get('estudianteID', [])
             
             if estudianteID not in estudiantes_curso:
-                print(f"[!] ADVERTENCIA: Estudiante {estudianteID} no está en estudianteID del curso {courseID}")
+                print(f"[!] ADVERTENCIA: Estudiante {estudianteID} no está inscrito en curso {courseID}")
                 print(f"    Estudiantes del curso: {estudiantes_curso}")
         
         # Referencia al documento de asistencia
@@ -192,7 +260,7 @@ def registrar_asistencia(nombre_estudiante, courseID=None):
             datos_existentes = asistencia_doc.to_dict() or {}
             
             if estudianteID in datos_existentes:
-                print(f"[!] El estudiante ya tiene asistencia registrada hoy")
+                print(f"[!] El estudiante ya tiene asistencia registrada")
                 print(f"    Registro existente: {datos_existentes[estudianteID]}")
                 return True
             
@@ -230,17 +298,66 @@ def entrenar_incremental(nuevos_registros):
 
         lbl = label_dict[persona]
         for img_path in rutas:
-            img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-            if img is not None:
-                facesData.append(img)
-                labels.append(lbl)
+            try:
+                img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                if img is not None:
+                    facesData.append(img)
+                    labels.append(lbl)
+            except Exception as e:
+                print(f"Error leyendo imagen {img_path}: {e}")
 
     if facesData:
         face_recognizer.update(facesData, np.array(labels))
         face_recognizer.write(model_path)
         print(f"Entrenamiento incremental: {len(facesData)} imágenes añadidas.")
+        return True
     else:
         print("No hay imágenes nuevas para entrenar.")
+        return False
+
+
+# ==================== FUNCIÓN MEJORADA: DETECTAR ROSTRO ====================
+def detectar_rostro_mejorado(imagen_gray):
+    """
+    Detecta rostros con múltiples estrategias.
+    Retorna (faces, metodo_usado) o (None, None) si falla.
+    """
+    try:
+        # Estrategia 1: Detección normal
+        faces = faceClassif.detectMultiScale(
+            imagen_gray,
+            scaleFactor=1.1,
+            minNeighbors=3,
+            minSize=(30, 30)
+        )
+        if len(faces) > 0:
+            return faces, "normal"
+        
+        # Estrategia 2: Más permisivo
+        faces = faceClassif.detectMultiScale(
+            imagen_gray,
+            scaleFactor=1.05,
+            minNeighbors=2,
+            minSize=(20, 20)
+        )
+        if len(faces) > 0:
+            return faces, "permisivo"
+        
+        # Estrategia 3: Ecualizar histograma
+        imagen_eq = cv2.equalizeHist(imagen_gray)
+        faces = faceClassif.detectMultiScale(
+            imagen_eq,
+            scaleFactor=1.1,
+            minNeighbors=3,
+            minSize=(30, 30)
+        )
+        if len(faces) > 0:
+            return faces, "ecualizado"
+        
+    except Exception as e:
+        print(f"Error en detección: {e}")
+    
+    return None, None
 
 
 # ==================== RUTAS ====================
@@ -255,67 +372,74 @@ def registrar():
 @app.route('/registro', methods=['POST'])
 def registro():
     """Endpoint para reconocimiento en tiempo real"""
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"estado": "error", "mensaje": "No se recibió imagen"}), 400
+    try:
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({"estado": "error", "mensaje": "No se recibió imagen"}), 400
 
-    # Decodificar imagen
-    image_data = re.sub(r'^data:image/.+;base64,', '', data['image'])
-    image_bytes = base64.b64decode(image_data)
-    np_arr = np.frombuffer(image_bytes, np.uint8)
-    frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        image_data = re.sub(r'^data:image/.+;base64,', '', data['image'])
+        image_bytes = base64.b64decode(image_data)
+        np_arr = np.frombuffer(image_bytes, np.uint8)
+        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    auxFrame = gray.copy()
-    faces = faceClassif.detectMultiScale(gray, 1.3, 5)
+        if frame is None:
+            return jsonify({"estado": "error", "mensaje": "Imagen inválida"}), 400
 
-    if len(faces) == 0:
-        return jsonify({"estado": "sin_rostro"})
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        auxFrame = gray.copy()
+        faces, metodo = detectar_rostro_mejorado(gray)
 
-    # Procesar primer rostro
-    x, y, w, h = faces[0]
-    rostro = auxFrame[y:y+h, x:x+w]
-    rostro = cv2.resize(rostro, (150, 150), interpolation=cv2.INTER_CUBIC)
-    label, confianza = face_recognizer.predict(rostro)
+        if faces is None or len(faces) == 0:
+            return jsonify({"estado": "sin_rostro"})
 
-    box = [int(x), int(y), int(w), int(h)]
-    
-    if confianza < 70 and label < len(imagePaths):
-        nombre = imagePaths[label]
+        x, y, w, h = faces[0]
+        rostro = auxFrame[y:y+h, x:x+w]
+        rostro = cv2.resize(rostro, (150, 150), interpolation=cv2.INTER_CUBIC)
+        label, confianza = face_recognizer.predict(rostro)
+
+        box = [int(x), int(y), int(w), int(h)]
         
-        # Lógica de registro único
-        if nombre not in tiempos_reconocimiento:
-            tiempos_reconocimiento[nombre] = time.time()
-        elif time.time() - tiempos_reconocimiento[nombre] >= duracion_reconocimiento:
-            if nombre not in estudiantes_reconocidos:
-                estudiantes_reconocidos.add(nombre)
-                registrar_asistencia(nombre)  # USA LA NUEVA FUNCIÓN
-        
-        return jsonify({
-            "estado": "reconocido",
-            "estudiante": nombre,
-            "confianza": float(confianza),
-            "box": box
-        })
-    else:
-        return jsonify({
-            "estado": "desconocido",
-            "confianza": float(confianza),
-            "box": box
-        })
+        if confianza < 70 and label < len(imagePaths):
+            # Obtener nombre de la carpeta (sanitizado)
+            nombre_carpeta = imagePaths[label]
+            
+            # Convertir nombre de carpeta a nombre real
+            # Ejemplo: "SHARON_ARIADNA_RINCON_GUERRERO" → "SHARON ARIADNA RINCON GUERRERO"
+            nombre_estudiante = nombre_carpeta.replace('_', ' ')
+            
+            if nombre_estudiante not in tiempos_reconocimiento:
+                tiempos_reconocimiento[nombre_estudiante] = time.time()
+            elif time.time() - tiempos_reconocimiento[nombre_estudiante] >= duracion_reconocimiento:
+                if nombre_estudiante not in estudiantes_reconocidos:
+                    estudiantes_reconocidos.add(nombre_estudiante)
+                    registrar_asistencia(nombre_estudiante)
+            
+            return jsonify({
+                "estado": "reconocido",
+                "estudiante": nombre_estudiante,
+                "confianza": float(confianza),
+                "box": box
+            })
+        else:
+            return jsonify({
+                "estado": "desconocido",
+                "confianza": float(confianza),
+                "box": box
+            })
+    except Exception as e:
+        print(f"Error en /registro: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"estado": "error", "mensaje": str(e)}), 500
 
 @app.route('/detectar_rostro', methods=['POST'])
 def detectar_rostro():
-    """
-    Detecta si hay un rostro en la imagen sin guardarla.
-    Usado para feedback visual en tiempo real.
-    """
+    """Detecta si hay un rostro en la imagen."""
     try:
         data = request.get_json()
         if not data or 'image' not in data:
             return jsonify({"rostro_detectado": False}), 200
 
-        # Decodificar imagen
         image_data = re.sub(r'^data:image/.+;base64,', '', data['image'])
         image_bytes = base64.b64decode(image_data)
         np_arr = np.frombuffer(image_bytes, np.uint8)
@@ -324,121 +448,164 @@ def detectar_rostro():
         if frame is None:
             return jsonify({"rostro_detectado": False}), 200
 
-        # Detectar rostros
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = faceClassif.detectMultiScale(gray, 1.3, 5)
+        faces, metodo = detectar_rostro_mejorado(gray)
 
-        if len(faces) > 0:
+        if faces is not None and len(faces) > 0:
             x, y, w, h = faces[0]
             return jsonify({
                 "rostro_detectado": True,
-                "box": [int(x), int(y), int(w), int(h)]
+                "box": [int(x), int(y), int(w), int(h)],
+                "metodo": metodo
             }), 200
         else:
             return jsonify({"rostro_detectado": False}), 200
 
     except Exception as e:
+        print(f"Error en /detectar_rostro: {e}")
         return jsonify({"rostro_detectado": False, "error": str(e)}), 200
 
 
 @app.route('/guardar_foto', methods=['POST'])
 def guardar_foto():
-    """
-    Guarda foto detectando y recortando la cara.
-    CORREGIDO: Ahora guarda correctamente en disco.
-    """
+    """Guarda foto con nombre sanitizado SOLO para filesystem."""
     try:
         data = request.get_json()
-        nombre = data.get('estudiante', '').strip()
+        if not data:
+            return jsonify({"ok": False, "error": "No se recibió data"}), 400
+        
+        nombre_original = data.get('estudiante', '').strip()
         foto_b64 = data.get('foto', '')
         
-        if not nombre or not foto_b64:
-            return jsonify({"ok": False, "error": "Faltan datos"}), 400
-
-        # Sanitizar nombre
-        nombre = re.sub(r'[^\w\s-]', '', nombre)  # Quitar caracteres especiales
-        nombre = nombre.replace(' ', '_')  # Espacios a guiones bajos
+        if not nombre_original:
+            return jsonify({"ok": False, "error": "Nombre requerido"}), 400
         
-        personPath = os.path.join(dataPath, nombre)
-        os.makedirs(personPath, exist_ok=True)
+        if not foto_b64:
+            return jsonify({"ok": False, "error": "Foto requerida"}), 400
+
+        # Sanitizar SOLO para el filesystem
+        nombre_filesystem = sanitizar_nombre_filesystem(nombre_original)
+        
+        print(f"\n💾 Guardando foto:")
+        print(f"   Nombre original: '{nombre_original}'")
+        print(f"   Nombre filesystem: '{nombre_filesystem}'")
+        
+        personPath = os.path.join(dataPath, nombre_filesystem)
+        
+        try:
+            os.makedirs(personPath, exist_ok=True)
+        except Exception as e:
+            print(f"❌ Error creando carpeta: {e}")
+            return jsonify({"ok": False, "error": f"Error creando carpeta: {str(e)}"}), 500
 
         # Decodificar imagen
-        if ',' in foto_b64:
-            header, encoded = foto_b64.split(',', 1)
-        else:
-            encoded = foto_b64
+        try:
+            if ',' in foto_b64:
+                header, encoded = foto_b64.split(',', 1)
+            else:
+                encoded = foto_b64
+                
+            img_bytes = base64.b64decode(encoded)
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+            if img is None:
+                return jsonify({"ok": False, "error": "Imagen inválida"}), 400
             
-        img_bytes = base64.b64decode(encoded)
-        nparr = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except Exception as e:
+            print(f"❌ Error decodificando imagen: {e}")
+            return jsonify({"ok": False, "error": f"Error decodificando: {str(e)}"}), 500
 
-        if img is None:
-            return jsonify({"ok": False, "error": "Imagen inválida"}), 400
+        # Convertir a escala de grises
+        try:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        except Exception as e:
+            return jsonify({"ok": False, "error": f"Error en conversión: {str(e)}"}), 500
 
-        # Detectar cara
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = faceClassif.detectMultiScale(gray, 1.3, 5)
+        # Detectar rostro
+        faces = None
+        metodo = "ninguno"
+        try:
+            faces, metodo = detectar_rostro_mejorado(gray)
+        except Exception as e:
+            print(f"⚠️ Error en detección (continuando): {e}")
 
-        if len(faces) == 0:
-            return jsonify({"ok": False, "msg": "no_face"}), 200
+        # Preparar imagen
+        timestamp = int(time.time() * 1000000)
+        filename = f'rostro_{timestamp}.jpg'
+        ruta = os.path.join(personPath, filename)
 
-        # Recortar primera cara
-        x, y, w, h = faces[0]
-        rostro = gray[y:y+h, x:x+w]
-        rostro = cv2.resize(rostro, (150, 150), interpolation=cv2.INTER_CUBIC)
-
-        # Guardar con timestamp único
-        timestamp = int(time.time() * 1000000)  # Microsegundos para más unicidad
-        ruta = os.path.join(personPath, f'rostro_{timestamp}.jpg')
-        
-        # GUARDAR EN DISCO
-        success = cv2.imwrite(ruta, rostro)
-        
-        if success:
-            print(f"  ✔ Foto guardada: {ruta}")
-            return jsonify({"ok": True, "ruta": ruta}), 200
-        else:
-            print(f"  ✖ Error al guardar: {ruta}")
-            return jsonify({"ok": False, "error": "Error al escribir archivo"}), 500
+        # Guardar
+        try:
+            if faces is not None and len(faces) > 0:
+                x, y, w, h = faces[0]
+                rostro = gray[y:y+h, x:x+w]
+                rostro_final = cv2.resize(rostro, (150, 150), interpolation=cv2.INTER_CUBIC)
+                tipo = "recorte"
+            else:
+                rostro_final = cv2.resize(gray, (150, 150), interpolation=cv2.INTER_CUBIC)
+                tipo = "completa"
+            
+            success = cv2.imwrite(ruta, rostro_final)
+            
+            if not success or not os.path.exists(ruta):
+                return jsonify({"ok": False, "error": "Error al guardar archivo"}), 500
+            
+            file_size = os.path.getsize(ruta)
+            print(f"✅ Foto guardada: {file_size} bytes ({tipo})")
+            
+            return jsonify({
+                "ok": True, 
+                "ruta": ruta,
+                "tipo": tipo,
+                "metodo": metodo,
+                "size": file_size
+            }), 200
+            
+        except Exception as e:
+            print(f"❌ Error guardando: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"ok": False, "error": f"Error guardando: {str(e)}"}), 500
 
     except Exception as e:
-        print(f"  ✖ Error en guardar_foto: {e}")
+        print(f"❌ ERROR GENERAL: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return jsonify({"ok": False, "error": f"Error general: {str(e)}"}), 500
 
 
 @app.route('/entrenar', methods=['POST'])
 def entrenar():
     """
-    Entrena el modelo con las fotos capturadas del estudiante.
-    Limpia las fotos después del entrenamiento.
+    Entrena el modelo SIN eliminar las carpetas de Data.
+    Las fotos individuales se eliminan pero la carpeta permanece.
     """
     try:
         data = request.get_json()
-        nombre = data.get('estudiante', '').strip()
+        nombre_original = data.get('estudiante', '').strip()
         
-        if not nombre:
+        if not nombre_original:
             return jsonify({"success": False, "error": "Nombre requerido"}), 400
 
-        # Sanitizar nombre (igual que en guardar_foto)
-        nombre_sanitizado = re.sub(r'[^\w\s-]', '', nombre)
-        nombre_sanitizado = nombre_sanitizado.replace(' ', '_')
+        # Sanitizar igual que en guardar_foto
+        nombre_filesystem = sanitizar_nombre_filesystem(nombre_original)
         
-        personPath = os.path.join(dataPath, nombre_sanitizado)
+        personPath = os.path.join(dataPath, nombre_filesystem)
         
         print(f"\n{'='*60}")
-        print(f"🤖 ENTRENANDO MODELO PARA: {nombre}")
+        print(f"🤖 ENTRENANDO MODELO")
         print(f"{'='*60}")
+        print(f"Nombre original: '{nombre_original}'")
+        print(f"Nombre filesystem: '{nombre_filesystem}'")
         print(f"Carpeta: {personPath}")
         
         if not os.path.exists(personPath):
             return jsonify({
                 "success": False, 
-                "error": f"No se encontraron fotos para {nombre}"
+                "error": f"No se encontró la carpeta para {nombre_original}"
             }), 404
         
-        # Obtener todas las imágenes
         archivos = [f for f in os.listdir(personPath) if f.endswith('.jpg')]
         
         if len(archivos) == 0:
@@ -449,39 +616,39 @@ def entrenar():
         
         print(f"Imágenes encontradas: {len(archivos)}")
         
-        # Preparar rutas completas
         nuevas_rutas = [os.path.join(personPath, f) for f in archivos]
         
-        # Entrenar incrementalmente
-        entrenar_incremental({nombre: nuevas_rutas})
+        # Entrenar con el nombre de la carpeta (nombre_filesystem)
+        exito = entrenar_incremental({nombre_filesystem: nuevas_rutas})
+        
+        if not exito:
+            return jsonify({
+                "success": False,
+                "error": "Falló el entrenamiento"
+            }), 500
         
         print(f"✔ Modelo entrenado con {len(nuevas_rutas)} imágenes")
         
-        # Limpiar imágenes temporales
-        print(f"🗑️  Limpiando archivos temporales...")
+        # SOLO eliminar las fotos individuales, NO la carpeta
+        print(f"🗑️  Limpiando fotos temporales (manteniendo carpeta)...")
         for ruta in nuevas_rutas:
             try:
                 if os.path.exists(ruta):
                     os.remove(ruta)
+                    print(f"  ✔ Eliminada: {os.path.basename(ruta)}")
             except Exception as e:
-                print(f"  Error eliminando {ruta}: {e}")
+                print(f"  ⚠️ Error eliminando {ruta}: {e}")
         
-        # Eliminar carpeta si está vacía
-        try:
-            if os.path.exists(personPath) and len(os.listdir(personPath)) == 0:
-                os.rmdir(personPath)
-                print(f"✔ Carpeta temporal eliminada")
-        except Exception as e:
-            print(f"  Error eliminando carpeta: {e}")
-        
+        print(f"✔ Carpeta '{nombre_filesystem}' mantenida en Data/")
         print(f"{'='*60}")
-        print(f"✅ ENTRENAMIENTO COMPLETADO PARA: {nombre}")
+        print(f"✅ ENTRENAMIENTO COMPLETADO")
         print(f"{'='*60}\n")
         
         return jsonify({
             "success": True,
             "mensaje": f"Modelo entrenado con {len(nuevas_rutas)} imágenes",
-            "imagenes_entrenadas": len(nuevas_rutas)
+            "imagenes_entrenadas": len(nuevas_rutas),
+            "carpeta": nombre_filesystem
         }), 200
         
     except Exception as e:
@@ -494,14 +661,11 @@ def entrenar():
         }), 500
 
 
-
-# ==================== TEST ENDPOINT ====================
 @app.route('/test_curso')
 def test_curso():
     """Endpoint para probar la detección del curso activo"""
     curso_id = obtener_curso_activo()
     
-    # Obtener info del curso
     curso_ref = db.collection('courses').document(curso_id)
     curso_doc = curso_ref.get()
     
@@ -527,6 +691,8 @@ if __name__ == '__main__':
     print(f"📁 Data Path: {dataPath}")
     print(f"🤖 Model Path: {model_path}")
     print(f"👥 Personas cargadas: {len(imagePaths)}")
+    print(f"Python: {sys.version}")
+    print(f"OpenCV: {cv2.__version__}")
     print("="*60 + "\n")
     
-    app.run(debug=True)
+    app.run(debug=True, host='127.0.0.1', port=5000)
