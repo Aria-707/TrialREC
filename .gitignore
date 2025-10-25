@@ -3,6 +3,6 @@ Data/
 node_modules/
 
 # Firebase credentials s
-*.json
+asistenciaconreconocimiento-firebase-adminsdk.json
 .env
-.xml
+*.xml
