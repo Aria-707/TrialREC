@@ -206,30 +206,25 @@ def obtener_curso_activo(profesor_id=None):
         return (None, None)
 
 
-# ==================== FUNCIÓN: REGISTRAR ASISTENCIA MEJORADA ====================
+# ==================== FUNCIÓN: REGISTRAR ASISTENCIA CON SALÓN ====================
 def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=None):
     """
-    Registra la asistencia en Firestore.
-    MEJORADO: 
-    - Maneja caso sin curso activo
-    - Detecta llegadas tarde (>30 min después del inicio)
-    - Agrega campo 'late' booleano
-    
-    Args:
-        nombre_estudiante: Nombre del estudiante
-        courseID: ID del curso (si es None, se busca automáticamente)
-        hora_inicio_clase: Hora de inicio real de la clase (formato "HH:MM")
+    Registra la asistencia en Firestore usando el salón configurado.
     """
     try:
         from datetime import timedelta
         
-        # Si no se proporciona courseID, obtenerlo automáticamente
+        # Obtener salón configurado
+        salon_actual = obtener_salon_actual()
+        
+        # Si no se proporciona courseID, obtenerlo automáticamente CON SALÓN
         if not courseID:
-            courseID, hora_inicio_clase = obtener_curso_activo()
+            courseID, hora_inicio_clase = obtener_curso_activo_con_salon(salon_requerido=salon_actual)
         
         # VALIDACIÓN: Si no hay curso activo, NO registrar
         if not courseID:
-            print(f"[!] NO SE REGISTRA ASISTENCIA: No hay curso activo en este momento")
+            print(f"[!] NO SE REGISTRA ASISTENCIA: No hay curso activo")
+            print(f"    Salón configurado: {salon_actual}")
             print(f"    El reconocimiento seguirá funcionando pero no guardará registros")
             return False
         
@@ -246,6 +241,7 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
         print(f"Fecha: {fecha_hoy}")
         print(f"Hora registro: {hora_actual_str}")
         print(f"Curso: {courseID}")
+        print(f"Salón: {salon_actual}")
         print(f"Hora inicio clase: {hora_inicio_clase}")
         
         # Buscar estudiante en Firebase
@@ -258,10 +254,6 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
             nombre_db = data.get('namePerson', '')
             nombre_db_normalizado = normalizar_nombre(nombre_db)
             
-            print(f"  Comparando:")
-            print(f"    DB: '{nombre_db}' → '{nombre_db_normalizado}'")
-            print(f"    Buscado: '{nombre_estudiante}' → '{nombre_normalizado}'")
-            
             if nombre_db_normalizado == nombre_normalizado:
                 estudiante_doc = doc
                 print(f"  ✔ ¡COINCIDENCIA ENCONTRADA!")
@@ -269,7 +261,6 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
         
         if not estudiante_doc:
             print(f"[✖] ERROR: No se encontró estudiante '{nombre_estudiante}'")
-            print(f"    Nombre normalizado buscado: '{nombre_normalizado}'")
             return False
         
         estudianteID = estudiante_doc.id
@@ -279,7 +270,7 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
         print(f"EstudianteID encontrado: {estudianteID}")
         print(f"Nombre real en Firebase: '{nombre_real}'")
         
-        # Verificar si está inscrito en el curso
+        # Verificar inscripción en el curso
         curso_ref = db.collection('courses').document(courseID)
         curso_doc = curso_ref.get()
         
@@ -289,57 +280,36 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
             
             if estudianteID not in estudiantes_curso:
                 print(f"[!] ADVERTENCIA: Estudiante {estudianteID} no inscrito en curso {courseID}")
-                print(f"    Estudiantes del curso: {estudiantes_curso}")
         
         # ========== CALCULAR SI LLEGÓ TARDE ==========
-        # REGLA: Se considera TARDE si llegó más de 30 min después del inicio
-        # Ejemplo: Clase a las 07:00
-        #   - A tiempo: 06:55 - 07:30
-        #   - Tarde: 07:31 en adelante
-        
         llegada_tarde = False
         
         if hora_inicio_clase:
             try:
-                # Convertir hora de inicio a datetime
                 hora_inicio = datetime.strptime(hora_inicio_clase, '%H:%M')
                 hora_actual_dt = datetime.strptime(hora_actual_str, '%H:%M')
-                
-                # Calcular diferencia en minutos
                 diferencia = (hora_actual_dt - hora_inicio).total_seconds() / 60
                 
-                # Se considera tarde si llegó MÁS DE 30 minutos después del inicio
                 if diferencia > 30:
                     llegada_tarde = True
-                    print(f"⚠️  LLEGADA TARDE DETECTADA")
-                    print(f"    Hora inicio clase: {hora_inicio_clase}")
-                    print(f"    Hora llegada: {hora_actual_str}")
-                    print(f"    Diferencia: {int(diferencia)} minutos después del inicio")
-                    print(f"    Límite puntualidad: 30 minutos")
+                    print(f"⚠️  LLEGADA TARDE DETECTADA ({int(diferencia)} min)")
                 else:
-                    # Llegó a tiempo o incluso antes
-                    if diferencia < 0:
-                        print(f"✓ Llegada ANTICIPADA")
-                        print(f"    Llegó {int(abs(diferencia))} minutos ANTES del inicio")
-                    else:
-                        print(f"✓ Llegada A TIEMPO")
-                        print(f"    Llegó {int(diferencia)} minutos después del inicio (dentro del límite)")
+                    print(f"✓ Llegada {'ANTICIPADA' if diferencia < 0 else 'A TIEMPO'}")
                     
             except Exception as e:
                 print(f"⚠️ Error calculando tardanza: {e}")
-                # Si hay error, por defecto no marca como tarde
                 llegada_tarde = False
         
         # Referencia al documento de asistencia
         asistencia_ref = db.collection('courses').document(courseID).collection('assistances').document(fecha_hoy)
         asistencia_doc = asistencia_ref.get()
         
-        # ========== DATOS DE ASISTENCIA CON CAMPO "late" ==========
+        # Datos de asistencia
         datos_asistencia = {
             estudianteID: {
                 'estadoAsistencia': 'Presente',
                 'horaRegistro': hora_actual_str,
-                'late': llegada_tarde  # ← NUEVO CAMPO
+                'late': llegada_tarde
             }
         }
         
@@ -348,18 +318,14 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
             
             if estudianteID in datos_existentes:
                 print(f"[!] El estudiante ya tiene asistencia registrada")
-                print(f"    Registro existente: {datos_existentes[estudianteID]}")
                 return True
             
-            # Actualizar documento existente
             asistencia_ref.update(datos_asistencia)
             print(f"[✔] Asistencia ACTUALIZADA")
         else:
-            # Crear nuevo documento
             asistencia_ref.set(datos_asistencia)
             print(f"[✔] Asistencia CREADA")
         
-        print(f"    Ruta: courses/{courseID}/assistances/{fecha_hoy}/{estudianteID}")
         print(f"    Estado: Presente")
         print(f"    Tarde: {'Sí ⚠️' if llegada_tarde else 'No ✓'}")
         print(f"=== REGISTRO EXITOSO ===\n")
@@ -448,10 +414,294 @@ def detectar_rostro_mejorado(imagen_gray):
     
     return None, None
 
+# Variable global para almacenar el salón configurado
+salon_configurado = None
+
+# ==================== FUNCIÓN: OBTENER TODOS LOS SALONES ====================
+def obtener_salones_disponibles():
+    """
+    Extrae todos los salones únicos de la colección 'courses'.
+    Maneja dos casos:
+    1. Cursos con subcolección 'groups'
+    2. Cursos con campo 'schedule' directo
+    
+    Returns:
+        list: Lista de salones únicos disponibles
+    """
+    try:
+        salones = set()  # Usar set para evitar duplicados
+        
+        print("\n=== EXTRAYENDO SALONES DISPONIBLES ===")
+        
+        # Obtener todos los cursos
+        cursos_ref = db.collection('courses')
+        cursos = cursos_ref.get()
+        
+        for curso_doc in cursos:
+            curso_id = curso_doc.id
+            curso_data = curso_doc.to_dict()
+            
+            print(f"\nProcesando curso: {curso_id}")
+            print(f"  Nombre: {curso_data.get('nameCourse', 'Sin nombre')}")
+            
+            # CASO 1: Verificar si tiene subcolección 'groups'
+            try:
+                groups_ref = db.collection('courses').document(curso_id).collection('groups')
+                groups = groups_ref.get()
+                
+                if groups:  # Si hay grupos
+                    print(f"  ✓ Tiene {len(groups)} grupos")
+                    
+                    for group_doc in groups:
+                        group_id = group_doc.id
+                        group_data = group_doc.to_dict()
+                        schedule = group_data.get('schedule', [])
+                        
+                        print(f"    Grupo: {group_id}")
+                        
+                        for horario in schedule:
+                            classroom = horario.get('classroom', '').strip()
+                            if classroom:
+                                salones.add(classroom)
+                                print(f"      → Salón: {classroom}")
+                    
+                    continue  # Si procesó grupos, pasar al siguiente curso
+                    
+            except Exception as e:
+                print(f"  [!] No tiene subcolección groups o error: {e}")
+            
+            # CASO 2: Campo 'schedule' directo en el curso
+            schedule = curso_data.get('schedule', [])
+            
+            if schedule:
+                print(f"  ✓ Tiene schedule directo con {len(schedule)} horarios")
+                
+                for horario in schedule:
+                    classroom = horario.get('classroom', '').strip()
+                    if classroom:
+                        salones.add(classroom)
+                        print(f"    → Salón: {classroom}")
+        
+        salones_lista = sorted(list(salones))  # Convertir a lista ordenada
+        
+        print(f"\n=== SALONES ENCONTRADOS: {len(salones_lista)} ===")
+        for salon in salones_lista:
+            print(f"  • {salon}")
+        print("=" * 50 + "\n")
+        
+        return salones_lista
+        
+    except Exception as e:
+        print(f"[✖] ERROR obteniendo salones: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+# ==================== FUNCIÓN: CONFIGURAR SALÓN ====================
+def configurar_salon(nombre_salon):
+    """
+    Configura el salón activo para el sistema.
+    
+    Args:
+        nombre_salon: Nombre del salón a configurar
+        
+    Returns:
+        bool: True si se configuró exitosamente
+    """
+    global salon_configurado
+    
+    try:
+        salon_configurado = nombre_salon.strip()
+        print(f"\n✅ SALÓN CONFIGURADO: '{salon_configurado}'")
+        return True
+    except Exception as e:
+        print(f"[✖] ERROR configurando salón: {e}")
+        return False
+
+
+# ==================== FUNCIÓN: OBTENER SALÓN ACTUAL ====================
+def obtener_salon_actual():
+    """
+    Retorna el salón actualmente configurado.
+    
+    Returns:
+        str: Nombre del salón configurado o None
+    """
+    return salon_configurado
+
+
+# ==================== FUNCIÓN MODIFICADA: OBTENER CURSO ACTIVO CON SALÓN ====================
+def obtener_curso_activo_con_salon(profesor_id=None, salon_requerido=None):
+    """
+    Obtiene el curso activo según el horario actual Y el salón configurado.
+    
+    Args:
+        profesor_id: ID del profesor (opcional)
+        salon_requerido: Salón en el que se toma asistencia
+    
+    Returns:
+        tuple: (curso_id, hora_inicio_real) o (None, None) si no hay curso
+    """
+    try:
+        from datetime import timedelta
+        
+        ahora = datetime.now()
+        dia_ingles = ahora.strftime('%A')
+        dia_espanol = DIAS_INGLES_A_ESPANOL.get(dia_ingles, dia_ingles)
+        hora_actual_str = ahora.strftime('%H:%M')
+        
+        print(f"\n=== BUSCANDO CURSO ACTIVO CON SALÓN ===")
+        print(f"Día (español): {dia_espanol}")
+        print(f"Hora actual: {hora_actual_str}")
+        print(f"Salón requerido: {salon_requerido}")
+        
+        if not salon_requerido:
+            print(f"[!] No hay salón configurado - no se puede buscar curso")
+            return (None, None)
+        
+        cursos_ref = db.collection('courses')
+        if profesor_id:
+            cursos_ref = cursos_ref.where('profesorID', '==', profesor_id)
+        
+        cursos = cursos_ref.get()
+        
+        for curso_doc in cursos:
+            curso_id = curso_doc.id
+            curso_data = curso_doc.to_dict()
+            
+            print(f"\n  Verificando curso: {curso_id}")
+            print(f"  Nombre: {curso_data.get('nameCourse')}")
+            
+            # CASO 1: Verificar grupos (subcolección)
+            try:
+                groups_ref = db.collection('courses').document(curso_id).collection('groups')
+                groups = groups_ref.get()
+                
+                if groups:
+                    print(f"    → Buscando en {len(groups)} grupos...")
+                    
+                    for group_doc in groups:
+                        group_id = group_doc.id
+                        group_data = group_doc.to_dict()
+                        schedule = group_data.get('schedule', [])
+                        
+                        resultado = verificar_horario_salon(
+                            schedule, 
+                            dia_espanol, 
+                            dia_ingles, 
+                            hora_actual_str, 
+                            salon_requerido,
+                            f"Grupo {group_id}"
+                        )
+                        
+                        if resultado:
+                            print(f"  [✔] ¡CURSO ACTIVO ENCONTRADO: {curso_id} - Grupo {group_id}!")
+                            return (curso_id, resultado)
+                    
+                    continue  # Siguiente curso si ya procesó grupos
+                    
+            except Exception as e:
+                print(f"    [!] No tiene grupos: {e}")
+            
+            # CASO 2: Schedule directo
+            schedule = curso_data.get('schedule', [])
+            
+            if schedule:
+                resultado = verificar_horario_salon(
+                    schedule, 
+                    dia_espanol, 
+                    dia_ingles, 
+                    hora_actual_str, 
+                    salon_requerido,
+                    "Schedule directo"
+                )
+                
+                if resultado:
+                    print(f"  [✔] ¡CURSO ACTIVO ENCONTRADO: {curso_id}!")
+                    return (curso_id, resultado)
+        
+        print(f"\n[!] No se encontró curso activo para:")
+        print(f"    • Día: {dia_espanol}")
+        print(f"    • Hora: {hora_actual_str}")
+        print(f"    • Salón: {salon_requerido}")
+        return (None, None)
+        
+    except Exception as e:
+        print(f"[✖] ERROR obteniendo curso activo: {e}")
+        import traceback
+        traceback.print_exc()
+        return (None, None)
+
+
+# ==================== FUNCIÓN AUXILIAR: VERIFICAR HORARIO Y SALÓN ====================
+def verificar_horario_salon(schedule, dia_espanol, dia_ingles, hora_actual_str, salon_requerido, origen):
+    """
+    Verifica si algún horario coincide con día, hora y salón.
+    
+    Returns:
+        str: Hora de inicio si coincide, None si no
+    """
+    for horario in schedule:
+        dia_horario = horario.get('day', '')
+        hora_inicio_str = horario.get('iniTime', '00:00')
+        hora_fin_str = horario.get('endTime', '23:59')
+        classroom = horario.get('classroom', '').strip()
+        
+        print(f"      [{origen}] {dia_horario} {hora_inicio_str}-{hora_fin_str} @ {classroom}")
+        
+        # 1. Verificar salón
+        if classroom != salon_requerido:
+            print(f"        ✗ Salón no coincide (esperado: {salon_requerido})")
+            continue
+        
+        print(f"        ✓ Salón coincide")
+        
+        # 2. Verificar día
+        if dia_horario != dia_espanol and dia_horario != dia_ingles:
+            print(f"        ✗ Día no coincide")
+            continue
+        
+        print(f"        ✓ Día coincide")
+        
+        # 3. Verificar hora
+        from datetime import timedelta
+        
+        hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M')
+        hora_fin = datetime.strptime(hora_fin_str, '%H:%M')
+        hora_actual = datetime.strptime(hora_actual_str, '%H:%M')
+        
+        ventana_inicio = hora_inicio - timedelta(minutes=5)
+        ventana_fin = hora_fin - timedelta(minutes=15)
+        
+        print(f"        Ventana: {ventana_inicio.strftime('%H:%M')} - {ventana_fin.strftime('%H:%M')}")
+        
+        if ventana_inicio <= hora_actual <= ventana_fin:
+            print(f"        ✓ Hora dentro del rango")
+            return hora_inicio_str
+        else:
+            print(f"        ✗ Hora fuera del rango")
+    
+    return None
+
 
 # ==================== RUTAS ====================
 @app.route('/')
 def index():
+    """
+    Ruta principal.
+    Si no hay salón configurado, redirige a configuración.
+    Si ya está configurado, muestra la página de reconocimiento.
+    """
+    salon_actual = obtener_salon_actual()
+    
+    if not salon_actual:
+        # No hay salón configurado, ir a configuración
+        print("⚠️ No hay salón configurado. Redirigiendo a /configuracion")
+        return redirect('/configuracion')
+    
+    # Ya hay salón configurado, mostrar página principal
+    print(f"✔ Salón configurado: {salon_actual}")
     return render_template('index.html')
 
 @app.route('/registrar')
@@ -460,8 +710,17 @@ def registrar():
 
 @app.route('/registro', methods=['POST'])
 def registro():
-    """Endpoint para reconocimiento en tiempo real"""
+    """Endpoint para reconocimiento en tiempo real CON SALÓN"""
     try:
+        # Verificar que haya salón configurado
+        salon_actual = obtener_salon_actual()
+        
+        if not salon_actual:
+            return jsonify({
+                "estado": "error",
+                "mensaje": "No hay salón configurado. Configura el salón primero."
+            }), 400
+        
         data = request.get_json()
         if not data or 'image' not in data:
             return jsonify({"estado": "error", "mensaje": "No se recibió imagen"}), 400
@@ -489,10 +748,7 @@ def registro():
         box = [int(x), int(y), int(w), int(h)]
         
         if confianza < 70 and label < len(imagePaths):
-            # Obtener nombre de la carpeta (sanitizado)
             nombre_carpeta = imagePaths[label]
-            
-            # Convertir nombre de carpeta a nombre real
             nombre_estudiante = nombre_carpeta.replace('_', ' ')
             
             if nombre_estudiante not in tiempos_reconocimiento:
@@ -501,20 +757,20 @@ def registro():
                 if nombre_estudiante not in estudiantes_reconocidos:
                     estudiantes_reconocidos.add(nombre_estudiante)
                     
-                    # Obtener curso activo y hora de inicio
-                    courseID, hora_inicio = obtener_curso_activo()
+                    # Obtener curso activo CON SALÓN
+                    courseID, hora_inicio = obtener_curso_activo_con_salon(salon_requerido=salon_actual)
                     
-                    # Solo registrar si hay curso activo
                     if courseID:
                         registrar_asistencia(nombre_estudiante, courseID, hora_inicio)
                     else:
-                        print(f"[!] Reconocido '{nombre_estudiante}' pero NO hay curso activo - no se registra")
+                        print(f"[!] Reconocido '{nombre_estudiante}' pero NO hay curso activo en {salon_actual}")
             
             return jsonify({
                 "estado": "reconocido",
                 "estudiante": nombre_estudiante,
                 "confianza": float(confianza),
-                "box": box
+                "box": box,
+                "salon": salon_actual
             })
         else:
             return jsonify({
@@ -756,15 +1012,25 @@ def entrenar():
 
 @app.route('/test_curso')
 def test_curso():
-    """Endpoint para probar la detección del curso activo"""
-    curso_id, hora_inicio = obtener_curso_activo()
+    """Endpoint para probar la detección del curso activo CON SALÓN"""
+    salon_actual = obtener_salon_actual()
+    
+    if not salon_actual:
+        return jsonify({
+            "success": False,
+            "mensaje": "No hay salón configurado",
+            "salon": None
+        })
+    
+    curso_id, hora_inicio = obtener_curso_activo_con_salon(salon_requerido=salon_actual)
     
     if not curso_id:
         return jsonify({
             "success": False,
-            "mensaje": "No hay curso activo en este momento",
+            "mensaje": f"No hay curso activo en salón '{salon_actual}'",
             "courseID": None,
-            "hora_inicio": None
+            "hora_inicio": None,
+            "salon": salon_actual
         })
     
     curso_ref = db.collection('courses').document(curso_id)
@@ -776,16 +1042,127 @@ def test_curso():
             "success": True,
             "courseID": curso_id,
             "hora_inicio": hora_inicio,
+            "salon": salon_actual,
             "curso": curso_data,
-            "mensaje": "Curso activo encontrado"
+            "mensaje": f"Curso activo encontrado en {salon_actual}"
         })
     else:
         return jsonify({
             "success": False,
             "error": "Curso encontrado pero no existe en BD",
-            "courseID": curso_id
+            "courseID": curso_id,
+            "salon": salon_actual
         })
+    
+@app.route('/configuracion')
+def configuracion():
+    """Página de configuración inicial del salón"""
+    return render_template('configSalon.html')
 
+
+@app.route('/api/salones', methods=['GET'])
+def api_obtener_salones():
+    """
+    Endpoint para obtener la lista de salones disponibles.
+    
+    Returns:
+        JSON con lista de salones
+    """
+    try:
+        salones = obtener_salones_disponibles()
+        
+        return jsonify({
+            "success": True,
+            "salones": salones,
+            "total": len(salones)
+        }), 200
+        
+    except Exception as e:
+        print(f"[✖] ERROR en /api/salones: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/api/configurar_salon', methods=['POST'])
+def api_configurar_salon():
+    """
+    Endpoint para configurar el salón activo.
+    
+    Body:
+        {
+            "salon": "nombre_del_salon"
+        }
+    
+    Returns:
+        JSON con confirmación
+    """
+    try:
+        data = request.get_json()
+        salon = data.get('salon', '').strip()
+        
+        if not salon:
+            return jsonify({
+                "success": False,
+                "error": "Nombre de salón requerido"
+            }), 400
+        
+        # Verificar que el salón existe
+        salones_disponibles = obtener_salones_disponibles()
+        
+        if salon not in salones_disponibles:
+            return jsonify({
+                "success": False,
+                "error": f"El salón '{salon}' no existe en el sistema"
+            }), 404
+        
+        # Configurar salón
+        exito = configurar_salon(salon)
+        
+        if exito:
+            return jsonify({
+                "success": True,
+                "salon": salon,
+                "mensaje": f"Salón configurado: {salon}"
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Error al configurar salón"
+            }), 500
+            
+    except Exception as e:
+        print(f"[✖] ERROR en /api/configurar_salon: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/api/salon_actual', methods=['GET'])
+def api_salon_actual():
+    """
+    Endpoint para obtener el salón actualmente configurado.
+    
+    Returns:
+        JSON con el salón actual
+    """
+    try:
+        salon = obtener_salon_actual()
+        
+        return jsonify({
+            "success": True,
+            "salon": salon,
+            "configurado": salon is not None
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+    
 
 if __name__ == '__main__':
     print("\n" + "="*60)

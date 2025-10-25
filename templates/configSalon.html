@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Configuración del Sistema - Reconocimiento Facial</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
+  <style>
+    .config-container {
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      margin: 0 auto;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .config-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .config-header h1 {
+      color: #00ff00;
+      font-size: 32px;
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    }
+
+    .config-header p {
+      color: #aaa;
+      font-size: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 30px;
+    }
+
+    .form-group label {
+      display: block;
+      color: white;
+      font-size: 18px;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+
+    .form-group select {
+      width: 100%;
+      padding: 15px;
+      font-size: 16px;
+      border: 2px solid #00ff00;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #333;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .form-group select:hover {
+      border-color: #00aa00;
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+    }
+
+    .form-group select:focus {
+      outline: none;
+      border-color: #00ff00;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+    }
+
+    .btn-confirmar {
+      width: 100%;
+      padding: 15px;
+      font-size: 18px;
+      font-weight: bold;
+      background: linear-gradient(135deg, #00ff00, #00aa00);
+      color: black;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 5px 15px rgba(0, 255, 0, 0.3);
+    }
+
+    .btn-confirmar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 255, 0, 0.5);
+    }
+
+    .btn-confirmar:active {
+      transform: translateY(0);
+    }
+
+    .btn-confirmar:disabled {
+      background: #666;
+      color: #999;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .loading {
+      text-align: center;
+      color: #00ff00;
+      font-size: 18px;
+      padding: 20px;
+    }
+
+    .error-message {
+      background: rgba(255, 0, 0, 0.2);
+      border: 2px solid red;
+      border-radius: 10px;
+      padding: 15px;
+      color: white;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .salon-info {
+      background: rgba(0, 255, 0, 0.1);
+      border: 2px solid #00ff00;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      color: white;
+    }
+
+    .salon-info h3 {
+      margin: 0 0 10px 0;
+      color: #00ff00;
+    }
+
+    .icon-classroom {
+      font-size: 60px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="contenedor-principal">
+    <div class="config-container">
+      <div class="icon-classroom">🏫</div>
+      
+      <div class="config-header">
+        <h1>Configuración del Sistema</h1>
+        <p>Selecciona el salón donde se tomará asistencia</p>
+      </div>
+
+      <div id="error-container"></div>
+
+      <div id="loading" class="loading">
+        ⏳ Cargando salones disponibles...
+      </div>
+
+      <div id="form-container" style="display: none;">
+        <div class="form-group">
+          <label for="salon-select">
+            📍 Salón de clases:
+          </label>
+          <select id="salon-select">
+            <option value="">-- Selecciona un salón --</option>
+          </select>
+        </div>
+
+        <button id="btn-confirmar" class="btn-confirmar" disabled>
+          ✅ Confirmar y Continuar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="logo-inferior">
+    <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
+  </div>
+
+  <script>
+    const loadingDiv = document.getElementById('loading');
+    const formContainer = document.getElementById('form-container');
+    const errorContainer = document.getElementById('error-container');
+    const salonSelect = document.getElementById('salon-select');
+    const btnConfirmar = document.getElementById('btn-confirmar');
+
+    // ============================================
+    // CARGAR SALONES DISPONIBLES
+    // ============================================
+    async function cargarSalones() {
+      try {
+        const response = await fetch('/api/salones');
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Error al cargar salones');
+        }
+
+        if (data.salones.length === 0) {
+          mostrarError('⚠️ No se encontraron salones configurados en el sistema');
+          loadingDiv.style.display = 'none';
+          return;
+        }
+
+        // Poblar select
+        data.salones.forEach(salon => {
+          const option = document.createElement('option');
+          option.value = salon;
+          option.textContent = salon;
+          salonSelect.appendChild(option);
+        });
+
+        // Mostrar formulario
+        loadingDiv.style.display = 'none';
+        formContainer.style.display = 'block';
+
+        console.log(`✔ ${data.salones.length} salones cargados`);
+
+      } catch (error) {
+        console.error('Error cargando salones:', error);
+        mostrarError('❌ Error: ' + error.message);
+        loadingDiv.style.display = 'none';
+      }
+    }
+
+    // ============================================
+    // HABILITAR/DESHABILITAR BOTÓN
+    // ============================================
+    salonSelect.addEventListener('change', () => {
+      btnConfirmar.disabled = !salonSelect.value;
+    });
+
+    // ============================================
+    // CONFIRMAR CONFIGURACIÓN
+    // ============================================
+    async function confirmarConfiguracion() {
+      const salon = salonSelect.value;
+
+      if (!salon) {
+        alert('Por favor selecciona un salón');
+        return;
+      }
+
+      btnConfirmar.disabled = true;
+      btnConfirmar.textContent = '⏳ Configurando...';
+
+      try {
+        const response = await fetch('/api/configurar_salon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ salon: salon })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Error al configurar salón');
+        }
+
+        // Éxito
+        btnConfirmar.textContent = '✅ ¡Configurado!';
+        btnConfirmar.style.background = '#00ff00';
+
+        console.log(`✔ Salón configurado: ${salon}`);
+
+        // Redirigir a página principal
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+
+      } catch (error) {
+        console.error('Error configurando salón:', error);
+        mostrarError('❌ ' + error.message);
+        btnConfirmar.disabled = false;
+        btnConfirmar.textContent = '✅ Confirmar y Continuar';
+      }
+    }
+
+    // ============================================
+    // MOSTRAR ERROR
+    // ============================================
+    function mostrarError(mensaje) {
+      errorContainer.innerHTML = `
+        <div class="error-message">
+          ${mensaje}
+        </div>
+      `;
+    }
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+    btnConfirmar.addEventListener('click', confirmarConfiguracion);
+
+    // ============================================
+    // INICIALIZACIÓN
+    // ============================================
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 Página de configuración cargada');
+      cargarSalones();
+    });
+  </script>
+</body>
+</html>
