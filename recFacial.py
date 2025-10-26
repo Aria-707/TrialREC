@@ -206,7 +206,8 @@ def obtener_curso_activo(profesor_id=None):
 # ==================== FUNCIÓN: REGISTRAR ASISTENCIA CON SALÓN ====================
 def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=None):
     """
-    Registra la asistencia en Firestore usando el salón configurado.
+    Actualiza la asistencia de un estudiante de 'Ausente' a 'Presente'.
+    El documento ya debe existir, creado automáticamente por el scheduler.
     """
     try:
         from datetime import timedelta
@@ -221,25 +222,20 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
         # VALIDACIÓN: Si no hay curso activo, NO registrar
         if not courseID:
             print(f"[!] NO SE REGISTRA ASISTENCIA: No hay curso activo")
-            print(f"    Salón configurado: {salon_actual}")
-            print(f"    El reconocimiento seguirá funcionando pero no guardará registros")
             return False
         
         fecha_hoy = datetime.now().strftime('%Y-%m-%d')
         hora_actual_str = datetime.now().strftime('%H:%M')
-        hora_actual = datetime.now()
         
-        print(f"\n=== REGISTRANDO ASISTENCIA ===")
-        print(f"Estudiante recibido: '{nombre_estudiante}'")
+        print(f"\n=== ACTUALIZANDO ASISTENCIA ===")
+        print(f"Estudiante: '{nombre_estudiante}'")
         
-        # Normalizar el nombre recibido
+        # Normalizar el nombre
         nombre_normalizado = normalizar_nombre(nombre_estudiante)
-        print(f"Nombre normalizado: '{nombre_normalizado}'")
+        print(f"Normalizado: '{nombre_normalizado}'")
         print(f"Fecha: {fecha_hoy}")
-        print(f"Hora registro: {hora_actual_str}")
+        print(f"Hora: {hora_actual_str}")
         print(f"Curso: {courseID}")
-        print(f"Salón: {salon_actual}")
-        print(f"Hora inicio clase: {hora_inicio_clase}")
         
         # Buscar estudiante en Firebase
         personas_ref = db.collection('person')
@@ -253,34 +249,17 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
             
             if nombre_db_normalizado == nombre_normalizado:
                 estudiante_doc = doc
-                print(f"  ✔ ¡COINCIDENCIA ENCONTRADA!")
                 break
         
         if not estudiante_doc:
-            print(f"[✖] ERROR: No se encontró estudiante '{nombre_estudiante}'")
+            print(f"[✖] ERROR: Estudiante no encontrado")
             return False
         
         estudianteID = estudiante_doc.id
-        estudiante_data = estudiante_doc.to_dict()
-        nombre_real = estudiante_data.get('namePerson', '')
+        print(f"ID encontrado: {estudianteID}")
         
-        print(f"EstudianteID encontrado: {estudianteID}")
-        print(f"Nombre real en Firebase: '{nombre_real}'")
-        
-        # Verificar inscripción en el curso
-        curso_ref = db.collection('courses').document(courseID)
-        curso_doc = curso_ref.get()
-        
-        if curso_doc.exists:
-            curso_data = curso_doc.to_dict()
-            estudiantes_curso = curso_data.get('estudianteID', [])
-            
-            if estudianteID not in estudiantes_curso:
-                print(f"[!] ADVERTENCIA: Estudiante {estudianteID} no inscrito en curso {courseID}")
-        
-        # ========== CALCULAR SI LLEGÓ TARDE ==========
+        # ========== CALCULAR TARDANZA ==========
         llegada_tarde = False
-        
         if hora_inicio_clase:
             try:
                 hora_inicio = datetime.strptime(hora_inicio_clase, '%H:%M')
@@ -289,52 +268,57 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
                 
                 if diferencia > 30:
                     llegada_tarde = True
-                    print(f"⚠️  LLEGADA TARDE DETECTADA ({int(diferencia)} min)")
+                    print(f"⚠️ TARDE: {int(diferencia)} minutos")
                 else:
-                    print(f"✓ Llegada {'ANTICIPADA' if diferencia < 0 else 'A TIEMPO'}")
-                    
-            except Exception as e:
-                print(f"⚠️ Error calculando tardanza: {e}")
-                llegada_tarde = False
+                    print(f"✓ A TIEMPO")
+            except:
+                pass
         
-        # Referencia al documento de asistencia
+        # Referencia al documento
         asistencia_ref = db.collection('courses').document(courseID).collection('assistances').document(fecha_hoy)
         asistencia_doc = asistencia_ref.get()
         
-        # Datos de asistencia
-        datos_asistencia = {
-            estudianteID: {
-                'estadoAsistencia': 'Presente',
-                'horaRegistro': hora_actual_str,
-                'late': llegada_tarde
-            }
-        }
+        if not asistencia_doc.exists:
+            print(f"[!] ADVERTENCIA: Documento no existe (scheduler no lo creó)")
+            return False
         
-        if asistencia_doc.exists:
-            datos_existentes = asistencia_doc.to_dict() or {}
+        datos_existentes = asistencia_doc.to_dict() or {}
+        
+        # Verificar si el estudiante está en el documento
+        if estudianteID not in datos_existentes:
+            print(f"[!] ADVERTENCIA: Estudiante no está registrado en este curso")
+            return False
+        
+        registro_actual = datos_existentes[estudianteID]
+        estado_actual = registro_actual.get('estadoAsistencia')
+        
+        print(f"Estado actual: {estado_actual}")
+        
+        # Solo actualizar si está en "Ausente"
+        if estado_actual == 'Ausente':
+            # ACTUALIZAR de Ausente a Presente
+            asistencia_ref.update({
+                estudianteID: {
+                    'estadoAsistencia': 'Presente',
+                    'horaRegistro': hora_actual_str,
+                    'late': llegada_tarde
+                }
+            })
             
-            if estudianteID in datos_existentes:
-                print(f"[!] El estudiante ya tiene asistencia registrada")
-                return True
-            
-            asistencia_ref.update(datos_asistencia)
-            print(f"[✔] Asistencia ACTUALIZADA")
+            print(f"[✔] ACTUALIZADO: Ausente → Presente")
+            print(f"    Hora: {hora_actual_str}")
+            print(f"    Tarde: {'Sí' if llegada_tarde else 'No'}")
+            print(f"=== ACTUALIZACIÓN EXITOSA ===\n")
+            return True
         else:
-            asistencia_ref.set(datos_asistencia)
-            print(f"[✔] Asistencia CREADA")
-        
-        print(f"    Estado: Presente")
-        print(f"    Tarde: {'Sí ⚠️' if llegada_tarde else 'No ✓'}")
-        print(f"=== REGISTRO EXITOSO ===\n")
-        return True
+            print(f"[!] Ya registrado como: {estado_actual}")
+            return True
         
     except Exception as e:
-        print(f"[✖] ERROR registrando asistencia: {e}")
+        print(f"[✖] ERROR: {e}")
         import traceback
         traceback.print_exc()
         return False
-
-
 # ==================== FUNCIONES DE ENTRENAMIENTO ====================
 def entrenar_incremental(nuevos_registros):
     """Entrenamiento incremental del modelo."""
@@ -413,6 +397,11 @@ def detectar_rostro_mejorado(imagen_gray):
 
 # Variable global para almacenar el salón configurado (persistente)
 salon_configurado = None
+def obtener_salon_configurado_para_scheduler():
+    """
+    Función callback para que el scheduler obtenga el salón actual.
+    """
+    return obtener_salon_actual()
 SALON_CONFIG_FILE = 'salon_config.txt'
 
 def cargar_salon_persistente():
@@ -1249,6 +1238,14 @@ if __name__ == '__main__':
     else:
         print(f"⚠️ No hay salón configurado")
     
+    print("="*60 + "\n")
+    
+    # Iniciar scheduler de asistencia
+    print("\n" + "="*60)
+    print("⏰ INICIANDO SCHEDULER DE ASISTENCIA")
+    print("="*60)
+    scheduler_thread = scheduler_asistencia.iniciar_scheduler(obtener_salon_configurado_para_scheduler)
+    print("✅ Scheduler iniciado en hilo separado")
     print("="*60 + "\n")
     
     app.run(debug=True, host='127.0.0.1', port=5000)
