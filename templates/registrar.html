@@ -356,12 +356,18 @@
     <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
   </div>
 
-  <script>
-    // CONFIGURACIÓN FIREBASE - REEMPLAZA CON TUS CREDENCIALES
+  <script type="module">
     import { initFirebase } from "/static/firebaseCred.js";
-  import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
-  const { auth } = await initFirebase();
+    // Inicializar Firebase
+    let auth;
+    try {
+      const firebaseApp = await initFirebase();
+      auth = firebaseApp.auth;
+    } catch (error) {
+      console.error('Error inicializando Firebase:', error);
+    }
 
     // VARIABLES GLOBALES
     const video = document.getElementById('camara-video');
@@ -395,6 +401,10 @@
     let deteccionInterval = null;
     let salonesDisponibles = [];
     let isAdmin = false;
+
+    // ============================================
+    // GESTIÓN DE CONFIGURACIÓN DE SALÓN
+    // ============================================
 
     // CARGAR SALÓN ACTUAL
     async function cargarSalonActual() {
@@ -470,11 +480,11 @@
       modalError.style.display = 'none';
 
       try {
-        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         const idTokenResult = await user.getIdTokenResult();
         
-        if (idTokenResult.claims.admin === true) {
+        if (idTokenResult.claims && idTokenResult.claims.admin === true) {
           isAdmin = true;
           
           if (salonesDisponibles.length === 0) {
@@ -567,7 +577,11 @@
       }
     });
 
-    // INICIAR CÁMARA (CÓDIGO ORIGINAL)
+    // ============================================
+    // REGISTRO DE ESTUDIANTE
+    // ============================================
+
+    // INICIAR CÁMARA
     async function iniciarCamara() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -644,7 +658,7 @@
       ctx.fillText(texto, mirroredX + 10, y - 12);
     }
 
-    // PROCESO DE CAPTURA (CÓDIGO ORIGINAL)
+    // PROCESO DE CAPTURA
     async function iniciarCaptura() {
       const nombre = nombreInput.value.trim();
       
@@ -757,12 +771,12 @@
       }
     });
 
+    // ============================================
     // INICIALIZACIÓN
-    window.addEventListener('DOMContentLoaded', () => {
-      console.log('🚀 Página de registro cargada');
-      cargarSalonActual();
-      iniciarCamara();
-    });
+    // ============================================
+    cargarSalonActual();
+    iniciarCamara();
+    console.log('🚀 Página de registro cargada');
 
     window.addEventListener('beforeunload', () => {
       if (deteccionInterval) {

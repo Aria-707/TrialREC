@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
   <style>
+    /* Estilos del botón de configuración */
     .config-button {
       position: fixed;
       top: 20px;
@@ -163,14 +164,17 @@
   </style>
 </head>
 <body>
+  <!-- Botón de configuración -->
   <div class="config-button" id="config-button" title="Configurar salón">
     <span style="font-size: 30px;">⚙️</span>
   </div>
 
+  <!-- Badge mostrando salón actual -->
   <div class="salon-badge" id="salon-badge">
     📍 <span id="salon-text">Cargando...</span>
   </div>
 
+  <!-- Modal de configuración -->
   <div class="config-modal" id="config-modal">
     <div class="config-modal-content">
       <!-- PASO 1: AUTENTICACIÓN -->
@@ -243,11 +247,18 @@
     <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
   </div>
 
-  <script>
+  <script type="module">
     import { initFirebase } from "/static/firebaseCred.js";
-  import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
-  const { auth } = await initFirebase();
+    // Inicializar Firebase
+    let auth;
+    try {
+      const firebaseApp = await initFirebase();
+      auth = firebaseApp.auth;
+    } catch (error) {
+      console.error('Error inicializando Firebase:', error);
+    }
 
     // VARIABLES GLOBALES
     const video = document.getElementById('camara-video');
@@ -275,6 +286,10 @@
 
     let salonesDisponibles = [];
     let isAdmin = false;
+
+    // ============================================
+    // GESTIÓN DE CONFIGURACIÓN DE SALÓN
+    // ============================================
 
     // CARGAR SALÓN ACTUAL
     async function cargarSalonActual() {
@@ -350,11 +365,11 @@
       modalError.style.display = 'none';
 
       try {
-        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         const idTokenResult = await user.getIdTokenResult();
         
-        if (idTokenResult.claims.admin === true) {
+        if (idTokenResult.claims && idTokenResult.claims.admin === true) {
           isAdmin = true;
           
           if (salonesDisponibles.length === 0) {
@@ -423,7 +438,10 @@
         salonText.textContent = nuevoSalon;
         salonBadge.style.background = 'rgba(0, 255, 0, 0.9)';
 
-        setTimeout(() => window.location.reload(), 1000);
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+
       } catch (error) {
         alert('❌ Error: ' + error.message);
         btnModalConfirmar.disabled = false;
@@ -446,7 +464,9 @@
       }
     });
 
-    // RECONOCIMIENTO FACIAL (CÓDIGO ORIGINAL)
+    // ============================================
+    // RECONOCIMIENTO FACIAL
+    // ============================================
     async function iniciarCamara() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -508,12 +528,12 @@
       }
     }
 
+    // ============================================
     // INICIALIZACIÓN
-    window.addEventListener('DOMContentLoaded', () => {
-      console.log('🚀 Página principal cargada');
-      cargarSalonActual();
-      iniciarCamara();
-    });
+    // ============================================
+    cargarSalonActual();
+    iniciarCamara();
+    console.log('🚀 Página principal cargada');
   </script>
 </body>
 </html>
