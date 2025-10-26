@@ -26,10 +26,10 @@ DIAS_INGLES_A_ESPANOL = {v: k for k, v in DIAS_ESPANOL_A_INGLES.items()}
 # Diccionario para rastrear qué documentos ya fueron inicializados
 documentos_inicializados = set()  # Formato: "courseID_fecha"
 
-
 def obtener_cursos_proximos_a_iniciar(salon_configurado):
     """
-    Obtiene los cursos que están a punto de iniciar (5 minutos antes).
+    Obtiene los cursos que iniciarán en los próximos 5 minutos.
+    Esta función se ejecuta en el minuto :54, por lo que busca clases que empiecen en :00
     
     Args:
         salon_configurado: Salón actualmente configurado
@@ -44,16 +44,15 @@ def obtener_cursos_proximos_a_iniciar(salon_configurado):
         hora_actual = ahora.strftime('%H:%M')
         fecha_actual = ahora.strftime('%Y-%m-%d')
         
-        # Calcular ventana de 5 minutos antes
-        hora_en_5_min = (ahora + timedelta(minutes=5)).strftime('%H:%M')
+        # En el minuto :54, buscamos clases que empiecen en :00 (5 minutos después)
+        hora_proxima = (ahora + timedelta(minutes=6)).strftime('%H:%M')
         
         cursos_a_inicializar = []
         
-        print(f"\n⏰ [{ahora.strftime('%H:%M:%S')}] Verificando cursos próximos a iniciar...")
-        print(f"   Día: {dia_espanol} ({dia_ingles})")
-        print(f"   Hora actual: {hora_actual}")
-        print(f"   Hora en 5 min: {hora_en_5_min}")
-        print(f"   Salón configurado: {salon_configurado}")
+        print(f"   📅 Día: {dia_espanol} ({dia_ingles})")
+        print(f"   🕐 Hora actual: {hora_actual}")
+        print(f"   🎯 Buscando clases que inicien a las: {hora_proxima}")
+        print(f"   🏫 Salón configurado: {salon_configurado}")
         
         if not salon_configurado:
             print("   [!] No hay salón configurado - saltando verificación")
@@ -78,14 +77,15 @@ def obtener_cursos_proximos_a_iniciar(salon_configurado):
                         schedule = group_data.get('schedule', [])
                         
                         for horario in schedule:
-                            resultado = verificar_horario_inicio(
+                            resultado = verificar_horario_exacto(
                                 horario, dia_espanol, dia_ingles, 
-                                hora_actual, hora_en_5_min, salon_configurado
+                                hora_proxima, salon_configurado
                             )
                             
                             if resultado:
                                 cursos_a_inicializar.append((curso_id, fecha_actual, resultado))
-                                print(f"   ✅ Curso a inicializar: {curso_id} a las {resultado}")
+                                nombre_curso = curso_data.get('nameCourse', 'Sin nombre')
+                                print(f"   ✅ Encontrado: {nombre_curso} ({curso_id}) - Inicia a las {resultado}")
                     
                     continue
             except Exception as e:
@@ -95,17 +95,18 @@ def obtener_cursos_proximos_a_iniciar(salon_configurado):
             schedule = curso_data.get('schedule', [])
             
             for horario in schedule:
-                resultado = verificar_horario_inicio(
+                resultado = verificar_horario_exacto(
                     horario, dia_espanol, dia_ingles,
-                    hora_actual, hora_en_5_min, salon_configurado
+                    hora_proxima, salon_configurado
                 )
                 
                 if resultado:
                     cursos_a_inicializar.append((curso_id, fecha_actual, resultado))
-                    print(f"   ✅ Curso a inicializar: {curso_id} a las {resultado}")
+                    nombre_curso = curso_data.get('nameCourse', 'Sin nombre')
+                    print(f"   ✅ Encontrado: {nombre_curso} ({curso_id}) - Inicia a las {resultado}")
         
         if not cursos_a_inicializar:
-            print(f"   ℹ️ No hay cursos próximos a iniciar")
+            print(f"   ℹ️ No hay cursos iniciando a las {hora_proxima} en {salon_configurado}")
         
         return cursos_a_inicializar
         
@@ -113,44 +114,41 @@ def obtener_cursos_proximos_a_iniciar(salon_configurado):
         print(f"   ❌ ERROR obteniendo cursos: {e}")
         return []
 
-
-def verificar_horario_inicio(horario, dia_espanol, dia_ingles, hora_actual, hora_en_5_min, salon_requerido):
+def verificar_horario_exacto(horario, dia_espanol, dia_ingles, hora_buscada, salon_requerido):
     """
-    Verifica si un horario está a punto de iniciar (exactamente 5 minutos antes).
+    Verifica si un horario coincide EXACTAMENTE con la hora buscada, día y salón.
     
+    Args:
+        horario: Diccionario con day, iniTime, classroom
+        dia_espanol: Día en español (ej: "Lunes")
+        dia_ingles: Día en inglés (ej: "Monday")
+        hora_buscada: Hora exacta a buscar (formato "HH:MM")
+        salon_requerido: Salón configurado
+        
     Returns:
-        str: Hora de inicio si coincide, None si no
+        str: Hora de inicio si coincide exactamente, None si no
     """
     try:
         dia_horario = horario.get('day', '')
         hora_inicio_str = horario.get('iniTime', '00:00')
         classroom = horario.get('classroom', '').strip()
         
-        # Verificar salón
+        # 1. Verificar salón
         if classroom != salon_requerido:
             return None
         
-        # Verificar día
+        # 2. Verificar día
         if dia_horario != dia_espanol and dia_horario != dia_ingles:
             return None
         
-        # Verificar si estamos exactamente 5 minutos antes
-        # Comparar si hora_en_5_min coincide con hora_inicio
-        hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M')
-        hora_5min = datetime.strptime(hora_en_5_min, '%H:%M')
-        hora_act = datetime.strptime(hora_actual, '%H:%M')
-        
-        # Ventana: estamos entre 5 y 6 minutos antes del inicio
-        diferencia = (hora_inicio - hora_act).total_seconds() / 60
-        
-        if 4 <= diferencia <= 6:  # Ventana de 2 minutos para capturar
+        # 3. Verificar hora EXACTA
+        if hora_inicio_str == hora_buscada:
             return hora_inicio_str
         
         return None
         
     except Exception as e:
         return None
-
 
 def inicializar_documento_asistencia(course_id, fecha):
     """
@@ -257,6 +255,7 @@ def limpiar_registros_antiguos():
 def tarea_programada(salon_configurado_callback):
     """
     Tarea que se ejecuta cada minuto para verificar cursos a inicializar.
+    OPTIMIZACIÓN: Solo procesa cuando los minutos terminan en :54
     
     Args:
         salon_configurado_callback: Función que retorna el salón actual configurado
@@ -264,31 +263,53 @@ def tarea_programada(salon_configurado_callback):
     print("\n" + "="*70)
     print("🚀 SCHEDULER DE ASISTENCIA INICIADO")
     print("="*70)
-    print("   ⏰ Verificación: Cada 60 segundos")
-    print("   📋 Inicialización: 5 minutos antes de cada clase")
+    print("   ⏰ Verificación: Solo cuando los minutos terminen en :54")
+    print("   📋 Inicialización: Automática en horas en punto (:00)")
     print("   🧹 Limpieza: Diariamente a la medianoche")
+    print("   💡 Optimizado: Procesamiento mínimo de CPU")
     print("="*70 + "\n")
     
     ultima_limpieza = datetime.now().date()
+    ultimo_minuto_procesado = -1  # Para evitar procesar dos veces el mismo :54
     
     while True:
         try:
+            ahora = datetime.now()
+            minuto_actual = ahora.minute
+            
             # Verificar si es un nuevo día para limpiar registros
-            hoy = datetime.now().date()
+            hoy = ahora.date()
             if hoy > ultima_limpieza:
                 limpiar_registros_antiguos()
                 ultima_limpieza = hoy
             
-            # Obtener salón configurado
-            salon_actual = salon_configurado_callback()
-            
-            if salon_actual:
-                # Buscar cursos próximos a iniciar
-                cursos = obtener_cursos_proximos_a_iniciar(salon_actual)
+            # ⭐ OPTIMIZACIÓN: Solo procesar cuando los minutos terminen en :54
+            if minuto_actual == 54 and ultimo_minuto_procesado != 54:
+                print(f"\n🔔 [{ahora.strftime('%H:%M:%S')}] ¡Minuto :54 detectado! Iniciando verificación...")
                 
-                # Inicializar documentos
-                for curso_id, fecha, hora_inicio in cursos:
-                    inicializar_documento_asistencia(curso_id, fecha)
+                # Obtener salón configurado
+                salon_actual = salon_configurado_callback()
+                
+                if salon_actual:
+                    # Buscar cursos próximos a iniciar
+                    cursos = obtener_cursos_proximos_a_iniciar(salon_actual)
+                    
+                    # Inicializar documentos
+                    for curso_id, fecha, hora_inicio in cursos:
+                        inicializar_documento_asistencia(curso_id, fecha)
+                    
+                    if not cursos:
+                        print(f"   ℹ️ No hay cursos a inicializar en este momento")
+                else:
+                    print(f"   ⚠️ No hay salón configurado - saltando verificación")
+                
+                # Marcar que ya procesamos este :54
+                ultimo_minuto_procesado = 54
+                print(f"✅ Verificación completada. Próxima verificación en ~60 minutos.\n")
+            
+            # Resetear cuando pasamos del minuto :54
+            elif minuto_actual != 54:
+                ultimo_minuto_procesado = -1
             
         except Exception as e:
             print(f"\n❌ ERROR en tarea programada: {e}")
@@ -297,7 +318,6 @@ def tarea_programada(salon_configurado_callback):
         
         # Esperar 60 segundos antes de la siguiente verificación
         time.sleep(60)
-
 
 def iniciar_scheduler(salon_configurado_callback):
     """
