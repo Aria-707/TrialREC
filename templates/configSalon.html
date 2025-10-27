@@ -176,7 +176,6 @@
 <body>
   <div class="contenedor-principal">
     <div class="config-container">
-      <div class="icon-classroom">🏫</div>
       
       <div class="config-header">
         <h1>Configuración del Sistema</h1>
@@ -187,20 +186,20 @@
 
       <!-- SECCIÓN DE AUTENTICACIÓN -->
       <div id="auth-section" class="auth-section">
-        <h3>🔐 Verificación de Administrador</h3>
+        <h3>Verificación de Administrador</h3>
         <input type="email" id="admin-email" placeholder="Correo electrónico">
         <input type="password" id="admin-password" placeholder="Contraseña">
         <button id="btn-verificar" class="btn-verificar">Verificar Credenciales</button>
       </div>
 
       <div id="loading" class="loading hidden">
-        ⏳ Cargando salones disponibles...
+        Cargando salones disponibles...
       </div>
 
       <div id="form-container" class="hidden">
         <div class="form-group">
           <label for="salon-select">
-            📍 Salón de clases:
+            Salón de clases:
           </label>
           <select id="salon-select">
             <option value="">-- Selecciona un salón --</option>
@@ -208,13 +207,13 @@
         </div>
 
         <button id="btn-confirmar" class="btn-confirmar" disabled>
-          ✅ Confirmar y Continuar
+          Confirmar y Continuar
         </button>
       </div>
     </div>
   </div>
 
-  <div class="logo-inferior">
+  <div class="logo">
     <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
   </div>
 
@@ -241,12 +240,12 @@ import { initFirebase } from "/static/firebaseCred.js";
     const password = adminPassword.value.trim();
 
     if (!email || !password) {
-      mostrarError('⚠️ Por favor ingresa correo y contraseña');
+      mostrarError('Por favor ingresa correo y contraseña');
       return;
     }
 
     btnVerificar.disabled = true;
-    btnVerificar.textContent = '⏳ Verificando...';
+    btnVerificar.textContent = 'Verificando...';
     errorContainer.innerHTML = '';
 
     try {
@@ -267,7 +266,7 @@ import { initFirebase } from "/static/firebaseCred.js";
       }
     } catch (error) {
       console.error('Error de autenticación:', error);
-      let mensaje = '❌ Error: ';
+      let mensaje = 'Error: ';
       if (error.code === 'auth/user-not-found') mensaje += 'Usuario no encontrado';
       else if (error.code === 'auth/wrong-password') mensaje += 'Contraseña incorrecta';
       else if (error.code === 'auth/invalid-email') mensaje += 'Correo electrónico inválido';
@@ -286,7 +285,7 @@ import { initFirebase } from "/static/firebaseCred.js";
       if (!data.success) throw new Error(data.error || 'Error al cargar salones');
 
       if (!data.salones || data.salones.length === 0) {
-        mostrarError('⚠️ No se encontraron salones configurados en el sistema');
+        mostrarError('No se encontraron salones configurados en el sistema');
         loadingDiv.classList.add('hidden');
         return;
       }
@@ -303,7 +302,7 @@ import { initFirebase } from "/static/firebaseCred.js";
       console.log(`✔ ${data.salones.length} salones cargados`);
     } catch (error) {
       console.error('Error cargando salones:', error);
-      mostrarError('❌ Error: ' + (error.message || error));
+      mostrarError('Error: ' + (error.message || error));
       loadingDiv.classList.add('hidden');
     }
   }
@@ -322,7 +321,7 @@ import { initFirebase } from "/static/firebaseCred.js";
 
   async function confirmarConfiguracion() {
     if (!isAdmin) {
-      mostrarError('❌ Debes autenticarte como administrador primero');
+      mostrarError('Debes autenticarte como administrador primero');
       return;
     }
     const salon = salonSelect.value;
@@ -345,7 +344,7 @@ import { initFirebase } from "/static/firebaseCred.js";
       setTimeout(() => window.location.href = '/', 1000);
     } catch (error) {
       console.error('Error configurando salón:', error);
-      mostrarError('❌ ' + (error.message || error));
+      mostrarError((error.message || error));
       btnConfirmar.disabled = false;
       btnConfirmar.textContent = '✅ Confirmar y Continuar';
     }

@@ -13,7 +13,7 @@
 <body>
   <!-- Botón de configuración -->
   <div class="config-button" id="config-button" title="Configurar salón">
-    <span style="font-size: 30px;">🌣</span>
+    <span style="font-size: 30px;">⚙</span>
   </div>
 
   <!-- Badge mostrando salón actual -->
@@ -24,6 +24,9 @@
   <!-- Modal de configuración -->
   <div class="config-modal" id="config-modal">
     <div class="config-modal-content">
+      <!-- ⬇️ BOTÓN CERRAR (X) -->
+      <button class="btn-cerrar-modal" id="btn-cerrar-modal">✖</button>
+      
       <!-- PASO 1: AUTENTICACIÓN -->
       <div id="auth-step">
         <div class="config-modal-header">
@@ -149,13 +152,13 @@
     const salonBadge = document.getElementById('salon-badge');
     const salonText = document.getElementById('salon-text');
     const configModal = document.getElementById('config-modal');
+    const btnCerrarModal = document.getElementById('btn-cerrar-modal');
 
     const authStep = document.getElementById('auth-step');
     const salonStep = document.getElementById('salon-step');
     const modalAdminEmail = document.getElementById('modal-admin-email');
     const modalAdminPassword = document.getElementById('modal-admin-password');
     const btnModalVerificar = document.getElementById('btn-modal-verificar');
-    const btnModalCancelarAuth = document.getElementById('btn-modal-cancelar-auth');
     const modalError = document.getElementById('modal-error');
 
     const modalSalonSelect = document.getElementById('modal-salon-select');
@@ -350,6 +353,11 @@
       isAdmin = false;
     });
 
+    // ⬇️ EVENTO BOTÓN CERRAR (X)
+    btnCerrarModal.addEventListener('click', () => {
+      configModal.classList.remove('active');
+    });
+
     async function verificarAdminModal() {
       const email = modalAdminEmail.value.trim();
       const password = modalAdminPassword.value.trim();
@@ -432,7 +440,7 @@
           headers: { 'Content-Type': 'application/json' }
         });
 
-        tnModalConfirmar.textContent = '¡Configurado!';
+        btnModalConfirmar.textContent = '¡Configurado!';
         btnModalConfirmar.style.background = '#275317';
         btnModalConfirmar.style.color = '#b6b6b6';
         salonText.textContent = nuevoSalon;

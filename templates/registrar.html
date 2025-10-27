@@ -19,6 +19,9 @@
 
   <div class="config-modal" id="config-modal">
     <div class="config-modal-content">
+      <!-- ⬇️ BOTÓN CERRAR (X) -->
+      <button class="btn-cerrar-modal" id="btn-cerrar-modal">✖</button>
+
       <!-- PASO 1: AUTENTICACIÓN -->
       <div id="auth-step">
         <div class="config-modal-header">
@@ -145,6 +148,7 @@
     const modalSalonSelect = document.getElementById('modal-salon-select');
     const btnModalConfirmar = document.getElementById('btn-modal-confirmar');
     const btnModalCancelar = document.getElementById('btn-modal-cancelar');
+    const btnCerrarModal = document.getElementById('btn-cerrar-modal');
 
     let capturando = false;
     let deteccionInterval = null;
@@ -213,6 +217,11 @@
       isAdmin = false;
     });
 
+    // ⬇️ EVENTO BOTÓN CERRAR (X)
+    btnCerrarModal.addEventListener('click', () => {
+      configModal.classList.remove('active');
+    });
+    
     // VERIFICAR ADMIN
     async function verificarAdminModal() {
       const email = modalAdminEmail.value.trim();

@@ -464,10 +464,10 @@ def detectar_rostro_mejorado(imagen_gray):
 # Variable global para almacenar el salón configurado (persistente)
 salon_configurado = None
 def obtener_salon_configurado_para_scheduler():
-    """
-    Función callback para que el scheduler obtenga el salón actual.
-    """
-    return obtener_salon_actual()
+     """
+     Función callback para que el scheduler obtenga el salón actual.
+     """
+     return obtener_salon_actual()
 SALON_CONFIG_FILE = 'salon_config.txt'
 
 def cargar_salon_persistente():

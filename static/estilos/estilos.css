@@ -404,6 +404,29 @@ body {
   transition: all 0.3s;
 }
 
+.btn-cerrar-modal {
+  position: absolute;
+  top: 315px;
+  right: 205px;
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  color: #3B7D23;
+  cursor: pointer;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  border-radius: 50%;
+}
+
+.btn-cerrar-modal:hover {
+  background: rgba(59, 125, 35, 0.1);
+  transform: rotate(90deg);
+}
+
 .btn-modal-confirmar {
   background: #275317;
   color: white;
