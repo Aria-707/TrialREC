@@ -5,173 +5,6 @@
   <title>Configuración del Sistema - Reconocimiento Facial</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
-  <style>
-    .config-container {
-      background: rgba(0, 0, 0, 0.8);
-      border-radius: 20px;
-      padding: 40px;
-      max-width: 600px;
-      margin: 0 auto;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    }
-
-    .config-header {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    .config-header h1 {
-      color: #00ff00;
-      font-size: 32px;
-      margin-bottom: 10px;
-      text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
-    }
-
-    .config-header p {
-      color: #aaa;
-      font-size: 16px;
-    }
-
-    .auth-section {
-      background: rgba(255, 0, 0, 0.1);
-      border: 2px solid #ff0000;
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 30px;
-    }
-
-    .auth-section h3 {
-      color: #ff0000;
-      margin: 0 0 15px 0;
-      text-align: center;
-    }
-
-    .auth-section input {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 10px;
-      font-size: 16px;
-      border: 2px solid #ff0000;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.95);
-      box-sizing: border-box;
-    }
-
-    .btn-verificar {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      font-weight: bold;
-      background: #ff0000;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-
-    .btn-verificar:hover {
-      background: #cc0000;
-    }
-
-    .btn-verificar:disabled {
-      background: #666;
-      cursor: not-allowed;
-    }
-
-    .form-group {
-      margin-bottom: 30px;
-    }
-
-    .form-group label {
-      display: block;
-      color: white;
-      font-size: 18px;
-      margin-bottom: 10px;
-      font-weight: bold;
-    }
-
-    .form-group select {
-      width: 100%;
-      padding: 15px;
-      font-size: 16px;
-      border: 2px solid #00ff00;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.95);
-      color: #333;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-
-    .form-group select:hover {
-      border-color: #00aa00;
-      box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
-    }
-
-    .form-group select:focus {
-      outline: none;
-      border-color: #00ff00;
-      box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
-    }
-
-    .btn-confirmar {
-      width: 100%;
-      padding: 15px;
-      font-size: 18px;
-      font-weight: bold;
-      background: linear-gradient(135deg, #00ff00, #00aa00);
-      color: black;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.3s;
-      box-shadow: 0 5px 15px rgba(0, 255, 0, 0.3);
-    }
-
-    .btn-confirmar:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0, 255, 0, 0.5);
-    }
-
-    .btn-confirmar:active {
-      transform: translateY(0);
-    }
-
-    .btn-confirmar:disabled {
-      background: #666;
-      color: #999;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .loading {
-      text-align: center;
-      color: #00ff00;
-      font-size: 18px;
-      padding: 20px;
-    }
-
-    .error-message {
-      background: rgba(255, 0, 0, 0.2);
-      border: 2px solid red;
-      border-radius: 10px;
-      padding: 15px;
-      color: white;
-      margin-bottom: 20px;
-      text-align: center;
-    }
-
-    .icon-classroom {
-      font-size: 60px;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-  </style>
 </head>
 <body>
   <div class="contenedor-principal">
@@ -328,7 +161,7 @@ import { initFirebase } from "/static/firebaseCred.js";
     if (!salon) { alert('Por favor selecciona un salón'); return; }
 
     btnConfirmar.disabled = true;
-    btnConfirmar.textContent = '⏳ Configurando...';
+    btnConfirmar.textContent = 'Configurando...';
 
     try {
       const response = await fetch('/api/configurar_salon', {
@@ -339,14 +172,15 @@ import { initFirebase } from "/static/firebaseCred.js";
       const data = await response.json();
       if (!data.success) throw new Error(data.error || 'Error al configurar salón');
 
-      btnConfirmar.textContent = '✅ ¡Configurado!';
-      btnConfirmar.style.background = '#00ff00';
+      btnConfirmar.textContent = '¡Configurado!';
+      btnConfirmar.style.background = '#275317';
+      btnConfirmar.style.color = '#b6b6b6';
       setTimeout(() => window.location.href = '/', 1000);
     } catch (error) {
       console.error('Error configurando salón:', error);
       mostrarError((error.message || error));
       btnConfirmar.disabled = false;
-      btnConfirmar.textContent = '✅ Confirmar y Continuar';
+      btnConfirmar.textContent = 'Confirmar y Continuar';
     }
   }
 

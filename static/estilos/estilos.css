@@ -63,17 +63,23 @@ body {
 /* Container vídeo + overlay + IA */
 #container {
   position: relative;
-  display: flex;              /* <— Cambia esto */
-  justify-content: center;    /* Centra horizontalmente */
-  align-items: center;        /* Opcional: centra verticalmente si lo necesitas */
-  width: 100%;        /* Ocupa todo el ancho disponible */
-  max-width: 1200px;  /* Máximo ancho que quieras permitir */
-  margin: 0 auto;   
+  display: flex;
+  /* <— Cambia esto */
+  justify-content: center;
+  /* Centra horizontalmente */
+  align-items: center;
+  /* Opcional: centra verticalmente si lo necesitas */
+  width: 100%;
+  /* Ocupa todo el ancho disponible */
+  max-width: 1200px;
+  /* Máximo ancho que quieras permitir */
+  margin: 0 auto;
 }
 
 /* Solo el video irá en modo espejo */
 #camara-video {
-  width: 100%;       /* Ocupa todo el ancho del contenedor */
+  width: 100%;
+  /* Ocupa todo el ancho del contenedor */
   max-width: 1200px;
   border-radius: 20px;
   transform: scaleX(-1);
@@ -124,9 +130,11 @@ body {
 /* Logo */
 .logo {
   position: fixed;
-  top: 20px;         /* Lo ubica desde arriba */
-  left: 20px;        /* Lo ubica desde la izquierda */
-  z-index: 100;  
+  top: 20px;
+  /* Lo ubica desde arriba */
+  left: 20px;
+  /* Lo ubica desde la izquierda */
+  z-index: 100;
 }
 
 .logo img {
@@ -324,7 +332,7 @@ body {
   justify-content: center;
   transition: all 0.3s ease;
   z-index: 1500;
-  
+
   background: rgba(102, 147, 86, 0.5);
   color: #0D3512;
 }
@@ -462,7 +470,7 @@ body {
    ESTILOS DE REGISTRO (registrar.html)
    ============================================ */
 
-   /* Título */
+/* Título */
 .texto-bienvenida-reg {
   color: #3A3A3A;
   font-size: 50px;
@@ -472,13 +480,19 @@ body {
 /* Container vídeo + overlay + IA */
 #container-reg {
   position: relative;
-  display: flex;              /* <— Cambia esto */
-  justify-content: center;    /* Centra horizontalmente */
-  align-items: center;        /* Opcional: centra verticalmente si lo necesitas */
-  width: 100%;        /* Ocupa todo el ancho disponible */
-  max-width: 1200px;  /* Máximo ancho que quieras permitir */
-  margin: 0 auto;   
+  display: flex;
+  /* <— Cambia esto */
+  justify-content: center;
+  /* Centra horizontalmente */
+  align-items: center;
+  /* Opcional: centra verticalmente si lo necesitas */
+  width: 100%;
+  /* Ocupa todo el ancho disponible */
+  max-width: 1200px;
+  /* Máximo ancho que quieras permitir */
+  margin: 0 auto;
 }
+
 .progreso-container {
   margin-top: 20px;
   width: 100%;
@@ -511,7 +525,7 @@ body {
 }
 
 .progreso-texto {
-  color:  black;
+  color: black;
   text-align: center;
   margin-top: 10px;
   font-size: 18px;
@@ -575,4 +589,155 @@ body {
 
 form {
   margin-top: 20px;
+}
+
+
+/* ============================================
+   ESTILOS DE CONFIGURAR SALÓN (configSalon.html)
+   ============================================ */
+
+
+.config-container {
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.config-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.config-header h1 {
+  color: #F2F2F2;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.config-header p {
+  color: #F2F2F2;
+  font-size: 16px;
+}
+
+.auth-section {
+  background: rgba(78, 167, 46, 0.5);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.auth-section h3 {
+  color: #D9F2D0;
+  margin: 0 0 15px 0;
+  text-align: center;
+}
+
+.auth-section input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 2px solid #747474;
+  background: rgba(255, 255, 255, 0.95);
+  box-sizing: border-box;
+}
+
+.btn-verificar {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  background: #275317;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-verificar:hover {
+  background: #357220;
+}
+
+.btn-verificar:disabled {
+  background: #b6b6b6;
+  cursor: not-allowed;
+}
+
+.form-group {
+  margin-bottom: 30px;
+}
+
+.form-group label {
+  display: block;
+  color: white;
+  font-size: 18px;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 15px;
+  font-size: 16px;
+  border: 2px solid #747474;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #333;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-confirmar {
+  width: 100%;
+  padding: 15px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #275317;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-confirmar:hover {
+  background: #357220;
+}
+
+.btn-confirmar:disabled {
+  background: #b6b6b6;
+  color: #404040;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.loading {
+  text-align: center;
+  color: #f2f2f2;
+  font-size: 18px;
+  padding: 20px;
+}
+
+.error-message {
+  background: rgba(255, 0, 0, 0.2);
+  border-radius: 10px;
+  padding: 15px;
+  color: white;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.icon-classroom {
+  font-size: 60px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.hidden {
+  display: none !important;
 }
