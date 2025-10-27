@@ -1,11 +1,15 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <title>Reconocimiento Facial Flask</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap"
+    rel="stylesheet">
 </head>
+
 <body>
   <!-- Botón de configuración -->
   <div class="config-button" id="config-button" title="Configurar salón">
@@ -26,13 +30,13 @@
           <h2>🔐 Autenticación Requerida</h2>
           <p style="color: #aaa; margin: 0;">Solo administradores pueden cambiar el salón</p>
         </div>
-        
+
         <div class="config-modal-body">
           <input type="email" id="modal-admin-email" placeholder="Correo electrónico">
           <input type="password" id="modal-admin-password" placeholder="Contraseña">
           <div id="modal-error" class="modal-error"></div>
         </div>
-        
+
         <div class="config-modal-footer">
           <button class="btn-modal-cancelar" id="btn-modal-cancelar-auth">
             ❌ Cancelar
@@ -49,13 +53,13 @@
           <h2>⚙️ Cambiar Salón</h2>
           <p style="color: #aaa; margin: 0;">Selecciona el nuevo salón</p>
         </div>
-        
+
         <div class="config-modal-body">
           <select id="modal-salon-select">
             <option value="">-- Selecciona un salón --</option>
           </select>
         </div>
-        
+
         <div class="config-modal-footer">
           <button class="btn-modal-cancelar" id="btn-modal-cancelar">
             ❌ Cancelar
@@ -71,48 +75,50 @@
   <!-- PANTALLA DE ESPERA -->
   <div class="pantalla-espera" id="pantalla-espera">
     <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="IA" class="ia-grande">
-    
+
     <div class="mensaje-espera">
-      <h2>🤖 Sistema en Espera</h2>
-      <p>Por el momento no hay ningún curso activo</p>
-      <p>Regresaré a tomar asistencia 5 minutos antes de que empiece la clase</p>
-      
-      <div id="info-proximo-curso" class="info-proximo-curso" style="display: none;">
-        <h3>📚 Próximo Curso</h3>
-        <p id="nombre-proximo-curso">Cargando...</p>
-        <p id="hora-proximo-curso">Hora: --:--</p>
-        <div class="tiempo-restante" id="tiempo-restante">--:--</div>
-        <p style="color: #aaa;">Tiempo restante para activación</p>
+      <h2>ESPERANDO...</h2>
+      <p>Por el momento no hay ningún curso activo.</p>
+      <p>¡Regresaré a registrar asistencia 5 minutos antes de que empiece tu clase!</p>
+      <div id="info-proximo-curso" class="info-proximo-curso" style="display: none;"></div>
+      <div class="flex-container">
+        <div class="flex-item">
+          <p id="nombre-proximo-curso">Cargando...</p>
+          <p id="hora-proximo-curso">Hora: --:--</p>
+        </div>
+        <div class="flex-item">
+          <p id="tiempo-restante">--:--</p>
+        </div>
       </div>
     </div>
   </div>
 
- <!-- PANTALLA DE RECONOCIMIENTO -->
-<div class="pantalla-reconocimiento" id="pantalla-reconocimiento">
-  <div class="contenedor-principal">
-    <div class="texto-bienvenida">¡Sonríe! Te reconoceré.</div>
+  <!-- PANTALLA DE RECONOCIMIENTO -->
+  <div class="pantalla-reconocimiento" id="pantalla-reconocimiento">
+    <div class="contenedor-principal">
+      <div class="texto-bienvenida">¡Sonríe! Te reconoceré.</div>
 
-    <div id="container">
-      <video id="camara-video" autoplay playsinline></video>
-      <canvas id="overlay"></canvas>
-      <div class="ia-encima">
-        <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="Cara de la IA">
+      <div id="container">
+        <video id="camara-video" autoplay playsinline></video>
+        <canvas id="overlay"></canvas>
+        <div class="ia-encima">
+          <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="Cara de la IA">
+        </div>
       </div>
-    </div>
 
-    <!-- NUEVO: Mensaje de estado dinámico -->
-    <div id="mensaje-estado" class="mensaje-estado" style="display: none;">
-      <span id="mensaje-emoji" class="emoji-grande"></span>
-      <span id="mensaje-texto"></span>
-    </div>
+      <!-- NUEVO: Mensaje de estado dinámico -->
+      <div id="mensaje-estado" class="mensaje-estado" style="display: none;">
+        <span id="mensaje-emoji" class="emoji-grande"></span>
+        <span id="mensaje-texto"></span>
+      </div>
 
-    <a href="{{ url_for('registrar') }}">
-      <button class="btn-registrar">Registrar nuevo estudiante</button>
-    </a>
+      <a href="{{ url_for('registrar') }}">
+        <button class="btn-registrar">Registrar nuevo estudiante</button>
+      </a>
+    </div>
   </div>
-</div>
 
-  <div class="logo-inferior">
+  <div class="logo">
     <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
   </div>
 
@@ -136,7 +142,7 @@
     const nombreProximoCurso = document.getElementById('nombre-proximo-curso');
     const horaProximoCurso = document.getElementById('hora-proximo-curso');
     const tiempoRestante = document.getElementById('tiempo-restante');
-    
+
     const video = document.getElementById('camara-video');
     const canvas = document.getElementById('overlay');
     const ctx = canvas.getContext('2d');
@@ -147,7 +153,7 @@
     const salonBadge = document.getElementById('salon-badge');
     const salonText = document.getElementById('salon-text');
     const configModal = document.getElementById('config-modal');
-    
+
     const authStep = document.getElementById('auth-step');
     const salonStep = document.getElementById('salon-step');
     const modalAdminEmail = document.getElementById('modal-admin-email');
@@ -155,7 +161,7 @@
     const btnModalVerificar = document.getElementById('btn-modal-verificar');
     const btnModalCancelarAuth = document.getElementById('btn-modal-cancelar-auth');
     const modalError = document.getElementById('modal-error');
-    
+
     const modalSalonSelect = document.getElementById('modal-salon-select');
     const btnModalConfirmar = document.getElementById('btn-modal-confirmar');
     const btnModalCancelar = document.getElementById('btn-modal-cancelar');
@@ -200,13 +206,13 @@
 
     function activarModoEspera(proximoCurso) {
       modoActual = 'espera';
-      
+
       // Ocultar reconocimiento
       pantallaReconocimiento.classList.remove('visible');
-      
+
       // Mostrar espera
       pantallaEspera.classList.add('visible');
-      
+
       // Detener cámara si está activa
       if (camaraIniciada && video.srcObject) {
         const tracks = video.srcObject.getTracks();
@@ -215,10 +221,10 @@
         camaraIniciada = false;
         console.log('📷 Cámara detenida');
       }
-      
+
       // Configurar info del próximo curso
       actualizarInfoProximoCurso(proximoCurso);
-      
+
       // Iniciar cuenta regresiva
       if (proximoCurso) {
         iniciarCuentaRegresiva(proximoCurso);
@@ -227,19 +233,19 @@
 
     function activarModoReconocimiento() {
       modoActual = 'reconocimiento';
-      
+
       // Detener cuenta regresiva
       if (intervaloCuentaRegresiva) {
         clearInterval(intervaloCuentaRegresiva);
         intervaloCuentaRegresiva = null;
       }
-      
+
       // Ocultar espera
       pantallaEspera.classList.remove('visible');
-      
+
       // Mostrar reconocimiento
       pantallaReconocimiento.classList.add('visible');
-      
+
       // Iniciar cámara si no está activa
       if (!camaraIniciada) {
         iniciarCamara();
@@ -249,7 +255,7 @@
     function actualizarInfoProximoCurso(proximoCurso) {
       if (proximoCurso) {
         infoProximoCurso.style.display = 'block';
-        nombreProximoCurso.textContent = proximoCurso.nombre_curso;
+        nombreProximoCurso.textContent = "Próxima clase: " + proximoCurso.nombre_curso;
         horaProximoCurso.textContent = `Hora de inicio: ${proximoCurso.hora_inicio}`;
       } else {
         infoProximoCurso.style.display = 'none';
@@ -261,20 +267,20 @@
       if (intervaloCuentaRegresiva) {
         clearInterval(intervaloCuentaRegresiva);
       }
-      
+
       intervaloCuentaRegresiva = setInterval(() => {
         // Recalcular minutos restantes
         const ahora = new Date();
         const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
-        
+
         const [horaInicio, minInicio] = proximoCurso.hora_inicio.split(':').map(Number);
         const horaInicioCurso = horaInicio * 60 + minInicio;
-        
+
         // Restar 5 minutos para la activación anticipada
         const horaActivacion = horaInicioCurso - 5;
-        
+
         let minutosRestantes = horaActivacion - horaActual;
-        
+
         if (minutosRestantes <= 0) {
           tiempoRestante.textContent = '00:00';
           clearInterval(intervaloCuentaRegresiva);
@@ -282,10 +288,10 @@
           verificarCursoActivo();
           return;
         }
-        
+
         const horas = Math.floor(minutosRestantes / 60);
         const minutos = minutosRestantes % 60;
-        
+
         tiempoRestante.textContent = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
       }, 1000);
     }
@@ -320,9 +326,9 @@
 
         if (data.success && data.salones) {
           salonesDisponibles = data.salones;
-          
+
           modalSalonSelect.innerHTML = '<option value="">-- Selecciona un salón --</option>';
-          
+
           data.salones.forEach(salon => {
             const option = document.createElement('option');
             option.value = salon;
@@ -366,14 +372,14 @@
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         const idTokenResult = await user.getIdTokenResult();
-        
+
         if (idTokenResult.claims && idTokenResult.claims.admin === true) {
           isAdmin = true;
-          
+
           if (salonesDisponibles.length === 0) {
             await cargarListaSalones();
           }
-          
+
           authStep.style.display = 'none';
           salonStep.style.display = 'block';
         } else {
@@ -385,7 +391,7 @@
         else if (error.code === 'auth/wrong-password') mensaje = 'Contraseña incorrecta';
         else if (error.code === 'auth/invalid-email') mensaje = 'Correo inválido';
         else mensaje = error.message;
-        
+
         modalError.textContent = '❌ ' + mensaje;
         modalError.style.display = 'block';
         btnModalVerificar.disabled = false;
@@ -394,7 +400,7 @@
     }
 
     btnModalVerificar.addEventListener('click', verificarAdminModal);
-    
+
     modalAdminPassword.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') verificarAdminModal();
     });
@@ -436,7 +442,7 @@
         salonBadge.style.background = 'rgba(0, 255, 0, 0.9)';
 
         configModal.classList.remove('active');
-        
+
         // Verificar inmediatamente el nuevo estado
         await verificarCursoActivo();
 
@@ -465,52 +471,52 @@
     // RECONOCIMIENTO FACIAL
     // ============================================
     const mensajeEstado = document.getElementById('mensaje-estado');
-const mensajeEmoji = document.getElementById('mensaje-emoji');
-const mensajeTexto = document.getElementById('mensaje-texto');
+    const mensajeEmoji = document.getElementById('mensaje-emoji');
+    const mensajeTexto = document.getElementById('mensaje-texto');
 
-function mostrarMensaje(categoria, nombreEstudiante) {
-  mensajeEstado.style.display = 'flex';
-  
-  // Limpiar clases anteriores
-  mensajeEstado.className = 'mensaje-estado';
-  
-  switch(categoria) {
-    case 'temprano':
-      mensajeEstado.classList.add('mensaje-temprano');
-      mensajeEmoji.textContent = '🌟';
-      mensajeTexto.textContent = `¡${nombreEstudiante} llegó temprano!`;
-      break;
-      
-    case 'justo_a_tiempo':
-      mensajeEstado.classList.add('mensaje-justo-a-tiempo');
-      mensajeEmoji.textContent = '⏰';
-      mensajeTexto.textContent = `¡${nombreEstudiante} llegó justo a tiempo!`;
-      break;
-      
-    case 'llego':
-      mensajeEstado.classList.add('mensaje-llego');
-      mensajeEmoji.textContent = '👍';
-      mensajeTexto.textContent = `${nombreEstudiante} llegó`;
-      break;
-      
-    case 'tarde':
-      mensajeEstado.classList.add('mensaje-tarde');
-      mensajeEmoji.textContent = '⚠️';
-      mensajeTexto.textContent = `${nombreEstudiante} llegó tarde`;
-      break;
-      
-    case 'error':
-      mensajeEstado.classList.add('mensaje-error');
-      mensajeEmoji.textContent = '❌';
-      mensajeTexto.textContent = 'Rostro no reconocido';
-      break;
-  }
-  
-  // Ocultar mensaje después de 5 segundos
-  setTimeout(() => {
-    mensajeEstado.style.display = 'none';
-  }, 5000);
-}
+    function mostrarMensaje(categoria, nombreEstudiante) {
+      mensajeEstado.style.display = 'flex';
+
+      // Limpiar clases anteriores
+      mensajeEstado.className = 'mensaje-estado';
+
+      switch (categoria) {
+        case 'temprano':
+          mensajeEstado.classList.add('mensaje-temprano');
+          mensajeEmoji.textContent = '🌟';
+          mensajeTexto.textContent = `¡${nombreEstudiante} llegó temprano!`;
+          break;
+
+        case 'justo_a_tiempo':
+          mensajeEstado.classList.add('mensaje-justo-a-tiempo');
+          mensajeEmoji.textContent = '⏰';
+          mensajeTexto.textContent = `¡${nombreEstudiante} llegó justo a tiempo!`;
+          break;
+
+        case 'llego':
+          mensajeEstado.classList.add('mensaje-llego');
+          mensajeEmoji.textContent = '👍';
+          mensajeTexto.textContent = `${nombreEstudiante} llegó`;
+          break;
+
+        case 'tarde':
+          mensajeEstado.classList.add('mensaje-tarde');
+          mensajeEmoji.textContent = '⚠️';
+          mensajeTexto.textContent = `${nombreEstudiante} llegó tarde`;
+          break;
+
+        case 'error':
+          mensajeEstado.classList.add('mensaje-error');
+          mensajeEmoji.textContent = '❌';
+          mensajeTexto.textContent = 'Rostro no reconocido';
+          break;
+      }
+
+      // Ocultar mensaje después de 5 segundos
+      setTimeout(() => {
+        mensajeEstado.style.display = 'none';
+      }, 5000);
+    }
     async function iniciarCamara() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -546,39 +552,39 @@ function mostrarMensaje(categoria, nombreEstudiante) {
     }
 
     async function enviarFotograma() {
-  if (!camaraIniciada || modoActual !== 'reconocimiento') return;
-  
-  const tmp = document.createElement('canvas');
-  tmp.width = video.videoWidth;
-  tmp.height = video.videoHeight;
-  const tmpCtx = tmp.getContext('2d');
-  tmpCtx.drawImage(video, 0, 0);
-  const imgBase64 = tmp.toDataURL('image/jpeg');
+      if (!camaraIniciada || modoActual !== 'reconocimiento') return;
 
-  try {
-    const res = await fetch(backendUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: imgBase64 })
-    });
-    const data = await res.json();
+      const tmp = document.createElement('canvas');
+      tmp.width = video.videoWidth;
+      tmp.height = video.videoHeight;
+      const tmpCtx = tmp.getContext('2d');
+      tmpCtx.drawImage(video, 0, 0);
+      const imgBase64 = tmp.toDataURL('image/jpeg');
 
-    if (data.estado === 'reconocido') {
-      dibujar(data.box, true, data.confianza, data.estudiante);
-      
-      // MOSTRAR MENSAJE SEGÚN CATEGORÍA
-      if (data.categoria_llegada) {
-        mostrarMensaje(data.categoria_llegada, data.estudiante);
+      try {
+        const res = await fetch(backendUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imgBase64 })
+        });
+        const data = await res.json();
+
+        if (data.estado === 'reconocido') {
+          dibujar(data.box, true, data.confianza, data.estudiante);
+
+          // MOSTRAR MENSAJE SEGÚN CATEGORÍA
+          if (data.categoria_llegada) {
+            mostrarMensaje(data.categoria_llegada, data.estudiante);
+          }
+        } else if (data.estado === 'desconocido') {
+          dibujar(data.box, false, data.confianza);
+          mostrarMensaje('error', '');
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      } catch (e) {
+        console.error('Error:', e);
       }
-    } else if (data.estado === 'desconocido') {
-      dibujar(data.box, false, data.confianza);
-      mostrarMensaje('error', '');
-    } else {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  } catch (e) {
-    console.error('Error:', e);
-  }
     }
 
     // ============================================
@@ -587,14 +593,15 @@ function mostrarMensaje(categoria, nombreEstudiante) {
     async function inicializar() {
       await cargarSalonActual();
       await verificarCursoActivo();
-      
+
       // Verificar cada 30 segundos
       intervaloVerificacion = setInterval(verificarCursoActivo, 30000);
-      
+
       console.log('🚀 Sistema iniciado - Verificación automática cada 30s');
     }
 
     inicializar();
   </script>
 </body>
+
 </html>
