@@ -266,7 +266,7 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
                 hora_actual_dt = datetime.strptime(hora_actual_str, '%H:%M')
                 diferencia = (hora_actual_dt - hora_inicio).total_seconds() / 60
                 
-                if diferencia > 30:
+                if diferencia > 15:
                     llegada_tarde = True
                     print(f"⚠️ TARDE: {int(diferencia)} minutos")
                 else:
@@ -750,6 +750,47 @@ def index():
 def registrar():
     return render_template('registrar.html')
 
+def calcular_categoria_llegada(hora_inicio_str):
+    """
+    Calcula la categoría de llegada del estudiante basado en la hora actual
+    vs la hora de inicio de la clase.
+    
+    Categorías:
+    - "temprano": 5 a 1 minuto antes
+    - "justo_a_tiempo": exactamente a la hora o hasta 1 minuto después
+    - "llego": 1 a 15 minutos después
+    - "tarde": más de 15 minutos después
+    
+    Returns:
+        str: Categoría de llegada
+    """
+    try:
+        from datetime import datetime, timedelta
+        
+        ahora = datetime.now()
+        hora_actual_str = ahora.strftime('%H:%M')
+        
+        hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M')
+        hora_actual = datetime.strptime(hora_actual_str, '%H:%M')
+        
+        # Diferencia en minutos (positivo = después, negativo = antes)
+        diferencia = (hora_actual - hora_inicio).total_seconds() / 60
+        
+        print(f"📊 Diferencia de tiempo: {diferencia:.1f} minutos")
+        
+        if diferencia < -1:  # Más de 1 minuto antes
+            return "temprano"
+        elif -1 <= diferencia <= 1:  # Entre 1 min antes y 1 min después
+            return "justo_a_tiempo"
+        elif 1 < diferencia <= 15:  # Entre 1 y 15 minutos después
+            return "llego"
+        else:  # Más de 15 minutos después
+            return "tarde"
+            
+    except Exception as e:
+        print(f"Error calculando categoría: {e}")
+        return "llego"  # Por defecto
+
 @app.route('/registro', methods=['POST'])
 def registro():
     """Endpoint para reconocimiento en tiempo real CON SALÓN"""
@@ -818,7 +859,20 @@ def registro():
                     courseID, hora_inicio = obtener_curso_activo_con_salon(salon_requerido=salon_actual)
                     
                     if courseID:
-                        registrar_asistencia(nombre_estudiante, courseID, hora_inicio)
+                        registrado = registrar_asistencia(nombre_estudiante, courseID, hora_inicio)
+                        
+                        # CALCULAR CATEGORÍA DE LLEGADA
+                        categoria = calcular_categoria_llegada(hora_inicio)
+                        
+                        return jsonify({
+                            "estado": "reconocido",
+                            "estudiante": nombre_estudiante,
+                            "confianza": float(confianza),
+                            "box": box,
+                            "salon": salon_actual,
+                            "registrado": registrado,
+                            "categoria_llegada": categoria  # ← NUEVO
+                        })
                     else:
                         print(f"[!] Reconocido '{nombre_estudiante}' pero NO hay curso activo en {salon_actual}")
             
@@ -840,6 +894,7 @@ def registro():
         import traceback
         traceback.print_exc()
         return jsonify({"estado": "error", "mensaje": str(e)}), 500
+
 
 @app.route('/detectar_rostro', methods=['POST'])
 def detectar_rostro():

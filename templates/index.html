@@ -5,246 +5,6 @@
   <title>Reconocimiento Facial Flask</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
-  <style>
-    /* Estilos del botón de configuración */
-    .config-button {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 1000;
-      background: rgba(0, 0, 0, 0.8);
-      border: 2px solid #00ff00;
-      border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.3s;
-      box-shadow: 0 5px 15px rgba(0, 255, 0, 0.3);
-    }
-
-    .config-button:hover {
-      transform: scale(1.1) rotate(90deg);
-      box-shadow: 0 8px 20px rgba(0, 255, 0, 0.5);
-    }
-
-    .salon-badge {
-      position: fixed;
-      top: 90px;
-      right: 20px;
-      z-index: 1000;
-      background: rgba(0, 255, 0, 0.9);
-      color: black;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-weight: bold;
-      font-size: 14px;
-      box-shadow: 0 5px 15px rgba(0, 255, 0, 0.3);
-      display: none;
-    }
-
-    .salon-badge.visible {
-      display: block;
-      animation: slideIn 0.5s ease;
-    }
-
-    @keyframes slideIn {
-      from {
-        transform: translateX(100px);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
-    }
-
-    /* Pantalla de espera */
-    .pantalla-espera {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 40px;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-
-    .pantalla-espera.visible {
-      display: flex;
-    }
-
-    .ia-grande {
-      width: 300px;
-      height: auto;
-      margin-bottom: 30px;
-      animation: flotarSuave 3s infinite alternate;
-    }
-
-    .mensaje-espera {
-      background: rgba(0, 0, 0, 0.8);
-      border: 3px solid #00ff00;
-      border-radius: 20px;
-      padding: 30px;
-      margin-bottom: 30px;
-      box-shadow: 0 10px 30px rgba(0, 255, 0, 0.3);
-    }
-
-    .mensaje-espera h2 {
-      color: #00ff00;
-      font-size: 36px;
-      margin: 0 0 20px 0;
-      text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
-    }
-
-    .mensaje-espera p {
-      color: white;
-      font-size: 20px;
-      line-height: 1.6;
-      margin: 10px 0;
-    }
-
-    .info-proximo-curso {
-      background: rgba(255, 255, 0, 0.2);
-      border: 2px solid yellow;
-      border-radius: 15px;
-      padding: 20px;
-      margin-top: 20px;
-    }
-
-    .info-proximo-curso h3 {
-      color: yellow;
-      margin: 0 0 10px 0;
-      font-size: 24px;
-    }
-
-    .info-proximo-curso p {
-      color: white;
-      font-size: 18px;
-      margin: 5px 0;
-    }
-
-    .tiempo-restante {
-      font-size: 48px;
-      color: #00ff00;
-      font-weight: bold;
-      margin: 20px 0;
-      text-shadow: 0 0 20px rgba(0, 255, 0, 0.7);
-    }
-
-    /* Pantalla de reconocimiento */
-    .pantalla-reconocimiento {
-      display: none;
-    }
-
-    .pantalla-reconocimiento.visible {
-      display: block;
-    }
-
-    .config-modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      z-index: 2000;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .config-modal.active {
-      display: flex;
-    }
-
-    .config-modal-content {
-      background: #1a1a1a;
-      border: 2px solid #00ff00;
-      border-radius: 20px;
-      padding: 30px;
-      max-width: 500px;
-      width: 90%;
-      box-shadow: 0 10px 50px rgba(0, 255, 0, 0.3);
-    }
-
-    .config-modal-header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .config-modal-header h2 {
-      color: #00ff00;
-      margin: 0 0 10px 0;
-    }
-
-    .config-modal-body select {
-      width: 100%;
-      padding: 15px;
-      font-size: 16px;
-      border: 2px solid #00ff00;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.95);
-      margin-bottom: 20px;
-    }
-
-    .config-modal-body input {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 10px;
-      font-size: 16px;
-      border: 2px solid #ff0000;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.95);
-      box-sizing: border-box;
-    }
-
-    .config-modal-footer {
-      display: flex;
-      gap: 10px;
-    }
-
-    .config-modal-footer button {
-      flex: 1;
-      padding: 12px;
-      font-size: 16px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: all 0.3s;
-    }
-
-    .btn-modal-confirmar {
-      background: #00ff00;
-      color: black;
-    }
-
-    .btn-modal-cancelar {
-      background: #666;
-      color: white;
-    }
-
-    .btn-modal-confirmar:hover {
-      background: #00aa00;
-      transform: translateY(-2px);
-    }
-
-    .btn-modal-cancelar:hover {
-      background: #888;
-    }
-
-    .modal-error {
-      color: red;
-      margin-bottom: 10px;
-      text-align: center;
-      display: none;
-      font-size: 14px;
-    }
-  </style>
 </head>
 <body>
   <!-- Botón de configuración -->
@@ -327,26 +87,30 @@
     </div>
   </div>
 
-  <!-- PANTALLA DE RECONOCIMIENTO -->
-  <div class="pantalla-reconocimiento" id="pantalla-reconocimiento">
-    <div class="contenedor-principal">
-      <div class="texto-bienvenida">¡Sonríe! Te reconoceré.</div>
+ <!-- PANTALLA DE RECONOCIMIENTO -->
+<div class="pantalla-reconocimiento" id="pantalla-reconocimiento">
+  <div class="contenedor-principal">
+    <div class="texto-bienvenida">¡Sonríe! Te reconoceré.</div>
 
-      <div id="container">
-        <video id="camara-video" autoplay playsinline></video>
-        <canvas id="overlay"></canvas>
-        <div class="ia-encima">
-          <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="Cara de la IA">
-        </div>
+    <div id="container">
+      <video id="camara-video" autoplay playsinline></video>
+      <canvas id="overlay"></canvas>
+      <div class="ia-encima">
+        <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="Cara de la IA">
       </div>
-
-      <p id="resultado-reconocimiento"></p>
-
-      <a href="{{ url_for('registrar') }}">
-        <button class="btn-registrar">Registrar nuevo estudiante</button>
-      </a>
     </div>
+
+    <!-- NUEVO: Mensaje de estado dinámico -->
+    <div id="mensaje-estado" class="mensaje-estado" style="display: none;">
+      <span id="mensaje-emoji" class="emoji-grande"></span>
+      <span id="mensaje-texto"></span>
+    </div>
+
+    <a href="{{ url_for('registrar') }}">
+      <button class="btn-registrar">Registrar nuevo estudiante</button>
+    </a>
   </div>
+</div>
 
   <div class="logo-inferior">
     <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
@@ -700,6 +464,53 @@
     // ============================================
     // RECONOCIMIENTO FACIAL
     // ============================================
+    const mensajeEstado = document.getElementById('mensaje-estado');
+const mensajeEmoji = document.getElementById('mensaje-emoji');
+const mensajeTexto = document.getElementById('mensaje-texto');
+
+function mostrarMensaje(categoria, nombreEstudiante) {
+  mensajeEstado.style.display = 'flex';
+  
+  // Limpiar clases anteriores
+  mensajeEstado.className = 'mensaje-estado';
+  
+  switch(categoria) {
+    case 'temprano':
+      mensajeEstado.classList.add('mensaje-temprano');
+      mensajeEmoji.textContent = '🌟';
+      mensajeTexto.textContent = `¡${nombreEstudiante} llegó temprano!`;
+      break;
+      
+    case 'justo_a_tiempo':
+      mensajeEstado.classList.add('mensaje-justo-a-tiempo');
+      mensajeEmoji.textContent = '⏰';
+      mensajeTexto.textContent = `¡${nombreEstudiante} llegó justo a tiempo!`;
+      break;
+      
+    case 'llego':
+      mensajeEstado.classList.add('mensaje-llego');
+      mensajeEmoji.textContent = '👍';
+      mensajeTexto.textContent = `${nombreEstudiante} llegó`;
+      break;
+      
+    case 'tarde':
+      mensajeEstado.classList.add('mensaje-tarde');
+      mensajeEmoji.textContent = '⚠️';
+      mensajeTexto.textContent = `${nombreEstudiante} llegó tarde`;
+      break;
+      
+    case 'error':
+      mensajeEstado.classList.add('mensaje-error');
+      mensajeEmoji.textContent = '❌';
+      mensajeTexto.textContent = 'Rostro no reconocido';
+      break;
+  }
+  
+  // Ocultar mensaje después de 5 segundos
+  setTimeout(() => {
+    mensajeEstado.style.display = 'none';
+  }, 5000);
+}
     async function iniciarCamara() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -735,34 +546,39 @@
     }
 
     async function enviarFotograma() {
-      if (!camaraIniciada || modoActual !== 'reconocimiento') return;
+  if (!camaraIniciada || modoActual !== 'reconocimiento') return;
+  
+  const tmp = document.createElement('canvas');
+  tmp.width = video.videoWidth;
+  tmp.height = video.videoHeight;
+  const tmpCtx = tmp.getContext('2d');
+  tmpCtx.drawImage(video, 0, 0);
+  const imgBase64 = tmp.toDataURL('image/jpeg');
+
+  try {
+    const res = await fetch(backendUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imgBase64 })
+    });
+    const data = await res.json();
+
+    if (data.estado === 'reconocido') {
+      dibujar(data.box, true, data.confianza, data.estudiante);
       
-      const tmp = document.createElement('canvas');
-      tmp.width = video.videoWidth;
-      tmp.height = video.videoHeight;
-      const tmpCtx = tmp.getContext('2d');
-      tmpCtx.drawImage(video, 0, 0);
-      const imgBase64 = tmp.toDataURL('image/jpeg');
-
-      try {
-        const res = await fetch(backendUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: imgBase64 })
-        });
-        const data = await res.json();
-
-        if (data.estado === 'reconocido') {
-          resultado.textContent = `✔ ${data.estudiante}`;
-          dibujar(data.box, true, data.confianza, data.estudiante);
-        } else if (data.estado === 'desconocido') {
-          dibujar(data.box, false, data.confianza);
-        } else {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-      } catch (e) {
-        console.error('Error:', e);
+      // MOSTRAR MENSAJE SEGÚN CATEGORÍA
+      if (data.categoria_llegada) {
+        mostrarMensaje(data.categoria_llegada, data.estudiante);
       }
+    } else if (data.estado === 'desconocido') {
+      dibujar(data.box, false, data.confianza);
+      mostrarMensaje('error', '');
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  } catch (e) {
+    console.error('Error:', e);
+  }
     }
 
     // ============================================
