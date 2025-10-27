@@ -319,7 +319,7 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
             # Agregar automáticamente al estudiante al registro de asistencia
             print(f"🔧 AGREGANDO ESTUDIANTE AL DOCUMENTO (TEMPORAL)")
             
-            # Verificar si el estudiante tiene el curso "0000"
+            # Verificar si el estudiante tiene el curso "00000"
             estudiante_ref = db.collection('person').document(estudianteID)
             estudiante_doc = estudiante_ref.get()
             
@@ -327,9 +327,9 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
                 estudiante_data = estudiante_doc.to_dict()
                 cursos_estudiante = estudiante_data.get('courses', [])
                 
-                # Si tiene el curso "0000", lo agregamos al registro
-                if '0000' in cursos_estudiante:
-                    print(f"   ✓ Estudiante tiene curso de prueba (0000)")
+                # Si tiene el curso "00000", lo agregamos al registro
+                if '00000' in cursos_estudiante:
+                    print(f"   ✓ Estudiante tiene curso de prueba (00000)")
                     print(f"   ✓ Agregando al registro de asistencia...")
                     
                     # Agregar el estudiante al documento con estado "Ausente"
@@ -1174,7 +1174,7 @@ def registrar_estudiante_en_firebase(nombre_estudiante):
     """
     FUNCIÓN TEMPORAL - SOLO PARA PRUEBAS
     Registra un estudiante en la colección 'person' de Firebase
-    con un ID aleatorio y curso por defecto "0000"
+    con un ID aleatorio y curso por defecto "00000"
     """
     try:
         import random
@@ -1202,18 +1202,18 @@ def registrar_estudiante_en_firebase(nombre_estudiante):
                 print(f"{'='*60}\n")
                 return doc.id
         
-        # Generar ID aleatorio entre 2000000000 y 2999999999
-        nuevo_id = str(random.randint(2000000000, 2999999999))
+        # Generar ID aleatorio entre 200000000000 y 2999999999
+        nuevo_id = str(random.randint(20000000000, 2999999999))
         
         # Verificar que el ID no exista (muy raro, pero por seguridad)
         while personas_ref.document(nuevo_id).get().exists:
-            nuevo_id = str(random.randint(2000000000, 2999999999))
+            nuevo_id = str(random.randint(20000000000, 2999999999))
         
         # Crear el documento
         datos_estudiante = {
             'namePerson': nombre_normalizado,
             'type': 'Estudiante',
-            'courses': ['0000']  # Curso por defecto para pruebas
+            'courses': ['00000']  # Curso por defecto para pruebas
         }
         
         personas_ref.document(nuevo_id).set(datos_estudiante)
@@ -1222,7 +1222,7 @@ def registrar_estudiante_en_firebase(nombre_estudiante):
         print(f"   ID: {nuevo_id}")
         print(f"   Nombre: {nombre_normalizado}")
         print(f"   Tipo: Estudiante")
-        print(f"   Cursos: ['0000']")
+        print(f"   Cursos: ['00000']")
         print(f"{'='*60}\n")
         
         return nuevo_id
