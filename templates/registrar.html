@@ -22,8 +22,8 @@
       <!-- PASO 1: AUTENTICACIÓN -->
       <div id="auth-step">
         <div class="config-modal-header">
-          <h2>🔐 Autenticación Requerida</h2>
-          <p style="color: #aaa; margin: 0;">Solo administradores pueden cambiar el salón</p>
+          <h2>Autenticación Requerida</h2>
+          <p style="color: #7F7F7F; margin: 0;">Solo administradores pueden cambiar el salón</p>
         </div>
 
         <div class="config-modal-body">
@@ -34,7 +34,7 @@
 
         <div class="config-modal-footer">
           <button class="btn-modal-confirmar" id="btn-modal-verificar">
-            🔓 Verificar
+            Verificar
           </button>
         </div>
       </div>
@@ -42,22 +42,22 @@
       <!-- PASO 2: SELECCIÓN DE SALÓN -->
       <div id="salon-step" style="display: none;">
         <div class="config-modal-header">
-          <h2>⚙️ Cambiar Salón</h2>
-          <p style="color: #aaa; margin: 0;">Selecciona el nuevo salón</p>
+          <h2>Cambiar Salón</h2>
+          <p style="color: #7F7F7F; margin: 0;">Selecciona el nuevo salón</p>
         </div>
 
         <div class="config-modal-body">
           <select id="modal-salon-select">
-            <option value="">-- Selecciona un salón --</option>
+            <option value="" style="color: #7F7F7F;">-- Selecciona un salón --</option>
           </select>
         </div>
 
         <div class="config-modal-footer">
           <button class="btn-modal-cancelar" id="btn-modal-cancelar">
-            ❌ Cancelar
+            Cancelar
           </button>
           <button class="btn-modal-confirmar" id="btn-modal-confirmar">
-            ✅ Confirmar
+            Confirmar
           </button>
         </div>
       </div>
@@ -219,13 +219,13 @@
       const password = modalAdminPassword.value.trim();
 
       if (!email || !password) {
-        modalError.textContent = '⚠️ Por favor ingresa correo y contraseña';
+        modalError.textContent = 'Por favor ingresa correo y contraseña';
         modalError.style.display = 'block';
         return;
       }
 
       btnModalVerificar.disabled = true;
-      btnModalVerificar.textContent = '⏳ Verificando...';
+      btnModalVerificar.textContent = 'Verificando...';
       modalError.style.display = 'none';
 
       try {
@@ -252,10 +252,10 @@
         else if (error.code === 'auth/invalid-email') mensaje = 'Correo inválido';
         else mensaje = error.message;
 
-        modalError.textContent = '❌ ' + mensaje;
+        modalError.textContent = mensaje;
         modalError.style.display = 'block';
         btnModalVerificar.disabled = false;
-        btnModalVerificar.textContent = '🔓 Verificar';
+        btnModalVerificar.textContent = 'Verificar';
       }
     }
 
@@ -268,19 +268,19 @@
     // CONFIRMAR CAMBIO
     btnModalConfirmar.addEventListener('click', async () => {
       if (!isAdmin) {
-        alert('❌ Error de autenticación');
+        alert('Error de autenticación');
         configModal.classList.remove('active');
         return;
       }
 
       const nuevoSalon = modalSalonSelect.value;
       if (!nuevoSalon) {
-        alert('⚠️ Por favor selecciona un salón');
+        alert('Por favor selecciona un salón');
         return;
       }
 
       btnModalConfirmar.disabled = true;
-      btnModalConfirmar.textContent = '⏳ Configurando...';
+      btnModalConfirmar.textContent = 'Configurando...';
 
       try {
         const response = await fetch('/api/configurar_salon', {
@@ -297,17 +297,18 @@
           headers: { 'Content-Type': 'application/json' }
         });
 
-        btnModalConfirmar.textContent = '✅ ¡Configurado!';
-        btnModalConfirmar.style.background = '#00ff00';
+        btnModalConfirmar.textContent = '¡Configurado!';
+        btnModalConfirmar.style.background = '#275317';
+        btnModalConfirmar.style.color = '#b6b6b6';
 
         setTimeout(() => {
           window.location.href = '/';
         }, 1000);
 
       } catch (error) {
-        alert('❌ Error: ' + error.message);
+        alert('Error: ' + error.message);
         btnModalConfirmar.disabled = false;
-        btnModalConfirmar.textContent = '✅ Confirmar';
+        btnModalConfirmar.textContent = 'Confirmar';
       }
     });
 

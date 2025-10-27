@@ -47,22 +47,22 @@
       <!-- PASO 2: SELECCIÓN DE SALÓN -->
       <div id="salon-step" style="display: none;">
         <div class="config-modal-header">
-          <h2>⚙️ Cambiar Salón</h2>
-          <p style="color: #aaa; margin: 0;">Selecciona el nuevo salón</p>
+          <h2>Cambiar Salón</h2>
+          <p style="color: #7F7F7F; margin: 0;">Selecciona el nuevo salón</p>
         </div>
 
         <div class="config-modal-body">
           <select id="modal-salon-select">
-            <option value="">-- Selecciona un salón --</option>
+            <option value="" style="color: #7F7F7F;">-- Selecciona un salón --</option>
           </select>
         </div>
 
         <div class="config-modal-footer">
           <button class="btn-modal-cancelar" id="btn-modal-cancelar">
-            ❌ Cancelar
+            Cancelar
           </button>
           <button class="btn-modal-confirmar" id="btn-modal-confirmar">
-            ✅ Confirmar
+            Confirmar
           </button>
         </div>
       </div>
@@ -432,8 +432,9 @@
           headers: { 'Content-Type': 'application/json' }
         });
 
-        btnModalConfirmar.textContent = '¡Configurado!';
-        btnModalConfirmar.style.background = '#00ff00';
+        tnModalConfirmar.textContent = '¡Configurado!';
+        btnModalConfirmar.style.background = '#275317';
+        btnModalConfirmar.style.color = '#b6b6b6';
         salonText.textContent = nuevoSalon;
         salonBadge.style.background = 'rgba(0, 255, 0, 0.9)';
 
@@ -447,10 +448,6 @@
         btnModalConfirmar.disabled = false;
         btnModalConfirmar.textContent = 'Confirmar';
       }
-    });
-
-    btnModalCancelarAuth.addEventListener('click', () => {
-      configModal.classList.remove('active');
     });
 
     btnModalCancelar.addEventListener('click', () => {
