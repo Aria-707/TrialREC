@@ -314,10 +314,46 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
         # Verificar si el estudiante está en el documento
         if estudianteID not in datos_existentes:
             print(f"[!] ADVERTENCIA: Estudiante no está registrado en este curso")
-            # OPCIONAL: Podrías agregarlo aquí si quieres
-            # datos_existentes[estudianteID] = {...}
-            return False
-        
+             
+            # ⚠️ CÓDIGO TEMPORAL - ELIMINAR DESPUÉS DE LA PRESENTACIÓN
+            # Agregar automáticamente al estudiante al registro de asistencia
+            print(f"🔧 AGREGANDO ESTUDIANTE AL DOCUMENTO (TEMPORAL)")
+            
+            # Verificar si el estudiante tiene el curso "0000"
+            estudiante_ref = db.collection('person').document(estudianteID)
+            estudiante_doc = estudiante_ref.get()
+            
+            if estudiante_doc.exists:
+                estudiante_data = estudiante_doc.to_dict()
+                cursos_estudiante = estudiante_data.get('courses', [])
+                
+                # Si tiene el curso "0000", lo agregamos al registro
+                if '0000' in cursos_estudiante:
+                    print(f"   ✓ Estudiante tiene curso de prueba (0000)")
+                    print(f"   ✓ Agregando al registro de asistencia...")
+                    
+                    # Agregar el estudiante al documento con estado "Ausente"
+                    datos_existentes[estudianteID] = {
+                        'estadoAsistencia': 'Ausente',
+                        'horaRegistro': None,
+                        'late': False
+                    }
+                    
+                    # Actualizar el documento en Firebase
+                    asistencia_ref.update({
+                        estudianteID: datos_existentes[estudianteID]
+                    })
+                    
+                    print(f"   ✅ Estudiante agregado al registro")
+                    print(f"   ℹ️ Continuando con actualización de asistencia...")
+                else:
+                    print(f"   ✗ Estudiante no tiene curso de prueba")
+                    return False
+            else:
+                print(f"   ✗ No se encontró el documento del estudiante")
+                return False
+            # ⚠️ FIN CÓDIGO TEMPORAL
+            
         registro_actual = datos_existentes[estudianteID]
         estado_actual = registro_actual.get('estadoAsistencia')
         
