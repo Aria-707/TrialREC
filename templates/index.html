@@ -61,6 +61,89 @@
       }
     }
 
+    /* Pantalla de espera */
+    .pantalla-espera {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .pantalla-espera.visible {
+      display: flex;
+    }
+
+    .ia-grande {
+      width: 300px;
+      height: auto;
+      margin-bottom: 30px;
+      animation: flotarSuave 3s infinite alternate;
+    }
+
+    .mensaje-espera {
+      background: rgba(0, 0, 0, 0.8);
+      border: 3px solid #00ff00;
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 30px rgba(0, 255, 0, 0.3);
+    }
+
+    .mensaje-espera h2 {
+      color: #00ff00;
+      font-size: 36px;
+      margin: 0 0 20px 0;
+      text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    }
+
+    .mensaje-espera p {
+      color: white;
+      font-size: 20px;
+      line-height: 1.6;
+      margin: 10px 0;
+    }
+
+    .info-proximo-curso {
+      background: rgba(255, 255, 0, 0.2);
+      border: 2px solid yellow;
+      border-radius: 15px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .info-proximo-curso h3 {
+      color: yellow;
+      margin: 0 0 10px 0;
+      font-size: 24px;
+    }
+
+    .info-proximo-curso p {
+      color: white;
+      font-size: 18px;
+      margin: 5px 0;
+    }
+
+    .tiempo-restante {
+      font-size: 48px;
+      color: #00ff00;
+      font-weight: bold;
+      margin: 20px 0;
+      text-shadow: 0 0 20px rgba(0, 255, 0, 0.7);
+    }
+
+    /* Pantalla de reconocimiento */
+    .pantalla-reconocimiento {
+      display: none;
+    }
+
+    .pantalla-reconocimiento.visible {
+      display: block;
+    }
+
     .config-modal {
       display: none;
       position: fixed;
@@ -225,22 +308,44 @@
     </div>
   </div>
 
-  <div class="contenedor-principal">
-    <div class="texto-bienvenida">¡Sonríe! Te reconoceré.</div>
-
-    <div id="container">
-      <video id="camara-video" autoplay playsinline></video>
-      <canvas id="overlay"></canvas>
-      <div class="ia-encima">
-        <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="Cara de la IA">
+  <!-- PANTALLA DE ESPERA -->
+  <div class="pantalla-espera" id="pantalla-espera">
+    <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="IA" class="ia-grande">
+    
+    <div class="mensaje-espera">
+      <h2>🤖 Sistema en Espera</h2>
+      <p>Por el momento no hay ningún curso activo</p>
+      <p>Regresaré a tomar asistencia 5 minutos antes de que empiece la clase</p>
+      
+      <div id="info-proximo-curso" class="info-proximo-curso" style="display: none;">
+        <h3>📚 Próximo Curso</h3>
+        <p id="nombre-proximo-curso">Cargando...</p>
+        <p id="hora-proximo-curso">Hora: --:--</p>
+        <div class="tiempo-restante" id="tiempo-restante">--:--</div>
+        <p style="color: #aaa;">Tiempo restante para activación</p>
       </div>
     </div>
+  </div>
 
-    <p id="resultado-reconocimiento"></p>
+  <!-- PANTALLA DE RECONOCIMIENTO -->
+  <div class="pantalla-reconocimiento" id="pantalla-reconocimiento">
+    <div class="contenedor-principal">
+      <div class="texto-bienvenida">¡Sonríe! Te reconoceré.</div>
 
-    <a href="{{ url_for('registrar') }}">
-      <button class="btn-registrar">Registrar nuevo estudiante</button>
-    </a>
+      <div id="container">
+        <video id="camara-video" autoplay playsinline></video>
+        <canvas id="overlay"></canvas>
+        <div class="ia-encima">
+          <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="Cara de la IA">
+        </div>
+      </div>
+
+      <p id="resultado-reconocimiento"></p>
+
+      <a href="{{ url_for('registrar') }}">
+        <button class="btn-registrar">Registrar nuevo estudiante</button>
+      </a>
+    </div>
   </div>
 
   <div class="logo-inferior">
@@ -261,6 +366,13 @@
     }
 
     // VARIABLES GLOBALES
+    const pantallaEspera = document.getElementById('pantalla-espera');
+    const pantallaReconocimiento = document.getElementById('pantalla-reconocimiento');
+    const infoProximoCurso = document.getElementById('info-proximo-curso');
+    const nombreProximoCurso = document.getElementById('nombre-proximo-curso');
+    const horaProximoCurso = document.getElementById('hora-proximo-curso');
+    const tiempoRestante = document.getElementById('tiempo-restante');
+    
     const video = document.getElementById('camara-video');
     const canvas = document.getElementById('overlay');
     const ctx = canvas.getContext('2d');
@@ -286,12 +398,137 @@
 
     let salonesDisponibles = [];
     let isAdmin = false;
+    let intervaloVerificacion = null;
+    let intervaloCuentaRegresiva = null;
+    let modoActual = null; // 'espera' o 'reconocimiento'
+    let camaraIniciada = false;
+
+    // ============================================
+    // VERIFICACIÓN DE CURSO ACTIVO
+    // ============================================
+    async function verificarCursoActivo() {
+      try {
+        const response = await fetch('/api/verificar_curso_activo');
+        const data = await response.json();
+
+        console.log('Estado del sistema:', data);
+
+        if (data.curso_activo) {
+          // HAY CURSO ACTIVO - Modo reconocimiento
+          if (modoActual !== 'reconocimiento') {
+            console.log('✅ Activando modo reconocimiento');
+            activarModoReconocimiento();
+          }
+        } else {
+          // NO HAY CURSO ACTIVO - Modo espera
+          if (modoActual !== 'espera') {
+            console.log('⏸️ Activando modo espera');
+            activarModoEspera(data.proximo_curso);
+          } else {
+            // Ya estamos en espera, solo actualizar info
+            actualizarInfoProximoCurso(data.proximo_curso);
+          }
+        }
+      } catch (error) {
+        console.error('Error verificando curso activo:', error);
+      }
+    }
+
+    function activarModoEspera(proximoCurso) {
+      modoActual = 'espera';
+      
+      // Ocultar reconocimiento
+      pantallaReconocimiento.classList.remove('visible');
+      
+      // Mostrar espera
+      pantallaEspera.classList.add('visible');
+      
+      // Detener cámara si está activa
+      if (camaraIniciada && video.srcObject) {
+        const tracks = video.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+        video.srcObject = null;
+        camaraIniciada = false;
+        console.log('📷 Cámara detenida');
+      }
+      
+      // Configurar info del próximo curso
+      actualizarInfoProximoCurso(proximoCurso);
+      
+      // Iniciar cuenta regresiva
+      if (proximoCurso) {
+        iniciarCuentaRegresiva(proximoCurso);
+      }
+    }
+
+    function activarModoReconocimiento() {
+      modoActual = 'reconocimiento';
+      
+      // Detener cuenta regresiva
+      if (intervaloCuentaRegresiva) {
+        clearInterval(intervaloCuentaRegresiva);
+        intervaloCuentaRegresiva = null;
+      }
+      
+      // Ocultar espera
+      pantallaEspera.classList.remove('visible');
+      
+      // Mostrar reconocimiento
+      pantallaReconocimiento.classList.add('visible');
+      
+      // Iniciar cámara si no está activa
+      if (!camaraIniciada) {
+        iniciarCamara();
+      }
+    }
+
+    function actualizarInfoProximoCurso(proximoCurso) {
+      if (proximoCurso) {
+        infoProximoCurso.style.display = 'block';
+        nombreProximoCurso.textContent = proximoCurso.nombre_curso;
+        horaProximoCurso.textContent = `Hora de inicio: ${proximoCurso.hora_inicio}`;
+      } else {
+        infoProximoCurso.style.display = 'none';
+      }
+    }
+
+    function iniciarCuentaRegresiva(proximoCurso) {
+      // Limpiar intervalo anterior si existe
+      if (intervaloCuentaRegresiva) {
+        clearInterval(intervaloCuentaRegresiva);
+      }
+      
+      intervaloCuentaRegresiva = setInterval(() => {
+        // Recalcular minutos restantes
+        const ahora = new Date();
+        const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
+        
+        const [horaInicio, minInicio] = proximoCurso.hora_inicio.split(':').map(Number);
+        const horaInicioCurso = horaInicio * 60 + minInicio;
+        
+        // Restar 5 minutos para la activación anticipada
+        const horaActivacion = horaInicioCurso - 5;
+        
+        let minutosRestantes = horaActivacion - horaActual;
+        
+        if (minutosRestantes <= 0) {
+          tiempoRestante.textContent = '00:00';
+          clearInterval(intervaloCuentaRegresiva);
+          // Verificar inmediatamente
+          verificarCursoActivo();
+          return;
+        }
+        
+        const horas = Math.floor(minutosRestantes / 60);
+        const minutos = minutosRestantes % 60;
+        
+        tiempoRestante.textContent = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+      }, 1000);
+    }
 
     // ============================================
     // GESTIÓN DE CONFIGURACIÓN DE SALÓN
     // ============================================
-
-    // CARGAR SALÓN ACTUAL
     async function cargarSalonActual() {
       try {
         const response = await fetch('/api/salon_actual');
@@ -312,7 +549,6 @@
       }
     }
 
-    // CARGAR LISTA DE SALONES
     async function cargarListaSalones() {
       try {
         const response = await fetch('/api/salones');
@@ -338,7 +574,6 @@
       }
     }
 
-    // ABRIR MODAL
     configButton.addEventListener('click', () => {
       configModal.classList.add('active');
       authStep.style.display = 'block';
@@ -349,7 +584,6 @@
       isAdmin = false;
     });
 
-    // VERIFICAR ADMIN
     async function verificarAdminModal() {
       const email = modalAdminEmail.value.trim();
       const password = modalAdminPassword.value.trim();
@@ -401,7 +635,6 @@
       if (e.key === 'Enter') verificarAdminModal();
     });
 
-    // CONFIRMAR CAMBIO
     btnModalConfirmar.addEventListener('click', async () => {
       if (!isAdmin) {
         alert('❌ Error de autenticación');
@@ -438,9 +671,10 @@
         salonText.textContent = nuevoSalon;
         salonBadge.style.background = 'rgba(0, 255, 0, 0.9)';
 
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        configModal.classList.remove('active');
+        
+        // Verificar inmediatamente el nuevo estado
+        await verificarCursoActivo();
 
       } catch (error) {
         alert('❌ Error: ' + error.message);
@@ -449,7 +683,6 @@
       }
     });
 
-    // CANCELAR
     btnModalCancelarAuth.addEventListener('click', () => {
       configModal.classList.remove('active');
     });
@@ -474,6 +707,8 @@
         await video.play();
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
+        camaraIniciada = true;
+        console.log('📷 Cámara iniciada');
         setInterval(enviarFotograma, 2000);
       } catch (err) {
         resultado.textContent = "No se pudo acceder a la cámara.";
@@ -500,6 +735,8 @@
     }
 
     async function enviarFotograma() {
+      if (!camaraIniciada || modoActual !== 'reconocimiento') return;
+      
       const tmp = document.createElement('canvas');
       tmp.width = video.videoWidth;
       tmp.height = video.videoHeight;
@@ -531,9 +768,17 @@
     // ============================================
     // INICIALIZACIÓN
     // ============================================
-    cargarSalonActual();
-    iniciarCamara();
-    console.log('🚀 Página principal cargada');
+    async function inicializar() {
+      await cargarSalonActual();
+      await verificarCursoActivo();
+      
+      // Verificar cada 30 segundos
+      intervaloVerificacion = setInterval(verificarCursoActivo, 30000);
+      
+      console.log('🚀 Sistema iniciado - Verificación automática cada 30s');
+    }
+
+    inicializar();
   </script>
 </body>
 </html>

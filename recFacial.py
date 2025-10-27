@@ -207,7 +207,7 @@ def obtener_curso_activo(profesor_id=None):
 def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=None):
     """
     Actualiza la asistencia de un estudiante de 'Ausente' a 'Presente'.
-    El documento ya debe existir, creado automáticamente por el scheduler.
+    Si el documento no existe, lo crea automáticamente.
     """
     try:
         from datetime import timedelta
@@ -278,15 +278,44 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
         asistencia_ref = db.collection('courses').document(courseID).collection('assistances').document(fecha_hoy)
         asistencia_doc = asistencia_ref.get()
         
+        # ========== NUEVO: CREAR DOCUMENTO SI NO EXISTE ==========
         if not asistencia_doc.exists:
-            print(f"[!] ADVERTENCIA: Documento no existe (scheduler no lo creó)")
-            return False
+            print(f"[!] Documento no existe - Creando automáticamente...")
+            
+            # Obtener estudiantes del curso
+            curso_ref = db.collection('courses').document(courseID)
+            curso_doc = curso_ref.get()
+            
+            if not curso_doc.exists:
+                print(f"[✖] ERROR: Curso no existe")
+                return False
+            
+            curso_data = curso_doc.to_dict()
+            estudiantes_ids = curso_data.get('estudianteID', [])
+            
+            # Crear documento con todos los estudiantes en "Ausente"
+            datos_iniciales = {}
+            for est_id in estudiantes_ids:
+                datos_iniciales[est_id] = {
+                    'estadoAsistencia': 'Ausente',
+                    'horaRegistro': None,
+                    'late': False
+                }
+            
+            asistencia_ref.set(datos_iniciales)
+            print(f"[✔] Documento creado con {len(estudiantes_ids)} estudiantes")
+            
+            # Obtener el documento recién creado
+            asistencia_doc = asistencia_ref.get()
         
+        # ========== CONTINUAR CON REGISTRO NORMAL ==========
         datos_existentes = asistencia_doc.to_dict() or {}
         
         # Verificar si el estudiante está en el documento
         if estudianteID not in datos_existentes:
             print(f"[!] ADVERTENCIA: Estudiante no está registrado en este curso")
+            # OPCIONAL: Podrías agregarlo aquí si quieres
+            # datos_existentes[estudianteID] = {...}
             return False
         
         registro_actual = datos_existentes[estudianteID]
@@ -319,6 +348,7 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
         import traceback
         traceback.print_exc()
         return False
+
 # ==================== FUNCIONES DE ENTRENAMIENTO ====================
 def entrenar_incremental(nuevos_registros):
     """Entrenamiento incremental del modelo."""
@@ -1080,6 +1110,184 @@ def test_curso():
             "courseID": curso_id,
             "salon": salon_actual
         })
+
+
+def obtener_proximo_curso(salon_requerido):
+    """
+    Obtiene información del próximo curso que iniciará en el salón configurado.
+    
+    Returns:
+        dict: Información del próximo curso o None
+    """
+    try:
+        from datetime import timedelta
+        
+        ahora = datetime.now()
+        dia_ingles = ahora.strftime('%A')
+        dia_espanol = DIAS_INGLES_A_ESPANOL.get(dia_ingles, dia_ingles)
+        hora_actual = ahora.strftime('%H:%M')
+        
+        print(f"\n=== BUSCANDO PRÓXIMO CURSO ===")
+        print(f"Día: {dia_espanol}")
+        print(f"Hora actual: {hora_actual}")
+        print(f"Salón: {salon_requerido}")
+        
+        cursos_ref = db.collection('courses')
+        cursos = cursos_ref.get()
+        
+        proximos_cursos = []
+        
+        for curso_doc in cursos:
+            curso_id = curso_doc.id
+            curso_data = curso_doc.to_dict()
+            
+            # CASO 1: Verificar grupos
+            try:
+                groups_ref = db.collection('courses').document(curso_id).collection('groups')
+                groups = groups_ref.get()
+                
+                if groups:
+                    for group_doc in groups:
+                        group_data = group_doc.to_dict()
+                        schedule = group_data.get('schedule', [])
+                        
+                        for horario in schedule:
+                            resultado = buscar_proximo_horario(
+                                horario, dia_espanol, dia_ingles,
+                                hora_actual, salon_requerido,
+                                curso_id, curso_data
+                            )
+                            if resultado:
+                                proximos_cursos.append(resultado)
+                    continue
+            except:
+                pass
+            
+            # CASO 2: Schedule directo
+            schedule = curso_data.get('schedule', [])
+            for horario in schedule:
+                resultado = buscar_proximo_horario(
+                    horario, dia_espanol, dia_ingles,
+                    hora_actual, salon_requerido,
+                    curso_id, curso_data
+                )
+                if resultado:
+                    proximos_cursos.append(resultado)
+        
+        if proximos_cursos:
+            # Ordenar por tiempo de espera (más cercano primero)
+            proximos_cursos.sort(key=lambda x: x['minutos_para_inicio'])
+            proximo = proximos_cursos[0]
+            
+            print(f"✔ Próximo curso encontrado:")
+            print(f"   Curso: {proximo['nombre_curso']}")
+            print(f"   Inicia: {proximo['hora_inicio']}")
+            print(f"   En: {proximo['minutos_para_inicio']} minutos")
+            
+            return proximo
+        
+        print(f"[!] No hay más cursos hoy en {salon_requerido}")
+        return None
+        
+    except Exception as e:
+        print(f"[✖] ERROR buscando próximo curso: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def buscar_proximo_horario(horario, dia_espanol, dia_ingles, hora_actual_str, salon_requerido, curso_id, curso_data):
+    """
+    Busca si un horario es el próximo a iniciar.
+    Retorna información del curso si es posterior a la hora actual.
+    """
+    try:
+        dia_horario = horario.get('day', '')
+        hora_inicio_str = horario.get('iniTime', '00:00')
+        classroom = horario.get('classroom', '').strip()
+        
+        # Verificar salón
+        if classroom != salon_requerido:
+            return None
+        
+        # Verificar día
+        if dia_horario != dia_espanol and dia_horario != dia_ingles:
+            return None
+        
+        # Verificar si es posterior a la hora actual
+        hora_actual = datetime.strptime(hora_actual_str, '%H:%M')
+        hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M')
+        
+        # Solo considerar cursos futuros (después de la hora actual)
+        if hora_inicio <= hora_actual:
+            return None
+        
+        # Calcular minutos para que inicie
+        diferencia = (hora_inicio - hora_actual).total_seconds() / 60
+        
+        return {
+            'curso_id': curso_id,
+            'nombre_curso': curso_data.get('nameCourse', 'Sin nombre'),
+            'hora_inicio': hora_inicio_str,
+            'minutos_para_inicio': int(diferencia),
+            'salon': salon_requerido
+        }
+        
+    except Exception as e:
+        return None
+     
+@app.route('/api/verificar_curso_activo', methods=['GET'])
+def api_verificar_curso_activo():
+    """
+    Verifica si hay un curso activo en este momento.
+    Retorna información sobre si el sistema debe estar en modo espera o reconocimiento.
+    """
+    try:
+        salon_actual = obtener_salon_actual()
+        
+        if not salon_actual:
+            return jsonify({
+                "curso_activo": False,
+                "salon_configurado": False,
+                "mensaje": "No hay salón configurado"
+            }), 200
+        
+        curso_id, hora_inicio = obtener_curso_activo_con_salon(salon_requerido=salon_actual)
+        
+        if curso_id:
+            # Hay curso activo
+            curso_ref = db.collection('courses').document(curso_id)
+            curso_doc = curso_ref.get()
+            
+            if curso_doc.exists:
+                curso_data = curso_doc.to_dict()
+                return jsonify({
+                    "curso_activo": True,
+                    "salon_configurado": True,
+                    "courseID": curso_id,
+                    "hora_inicio": hora_inicio,
+                    "salon": salon_actual,
+                    "nombre_curso": curso_data.get('nameCourse', 'Sin nombre')
+                }), 200
+        
+        # No hay curso activo - calcular próximo curso
+        proximo_curso = obtener_proximo_curso(salon_actual)
+        
+        return jsonify({
+            "curso_activo": False,
+            "salon_configurado": True,
+            "salon": salon_actual,
+            "proximo_curso": proximo_curso
+        }), 200
+        
+    except Exception as e:
+        print(f"[✖] ERROR en /api/verificar_curso_activo: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "curso_activo": False,
+            "error": str(e)
+        }), 500
     
 @app.route('/configuracion')
 def configuracion():
