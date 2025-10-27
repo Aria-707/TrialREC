@@ -154,8 +154,7 @@ body {
   top: 20px;
   right: 20px;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.8);
-  border: 2px solid #00ff00;
+  background: #747474;
   border-radius: 50%;
   width: 60px;
   height: 60px;
@@ -164,26 +163,23 @@ body {
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s;
-  box-shadow: 0 5px 15px rgba(0, 255, 0, 0.3);
 }
 
 .config-button:hover {
   transform: scale(1.1) rotate(90deg);
-  box-shadow: 0 8px 20px rgba(0, 255, 0, 0.5);
 }
 
 .salon-badge {
   position: fixed;
-  top: 90px;
-  right: 20px;
+  top: 30px;
+  right: 95px;
   z-index: 1000;
-  background: rgba(0, 255, 0, 0.9);
-  color: black;
+  background: #b6b6b6;
+  color: #404040;
   padding: 10px 20px;
   border-radius: 20px;
   font-weight: bold;
   font-size: 14px;
-  box-shadow: 0 5px 15px rgba(0, 255, 0, 0.3);
   display: none;
 }
 
@@ -316,19 +312,19 @@ body {
   transform: translate(-50%, -50%);
   padding: 15px 30px;
   border-radius: 10px;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 500;
   text-align: center;
-  max-height: 20px;
-  max-width: 300px;
+  max-height: 25px;
+  max-width: 305px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
   z-index: 1500;
   
-  background: #b6b6b6;
-  color: #ffffff;
+  background: rgba(102, 147, 86, 0.5);
+  color: #0D3512;
 }
 
 /* ============================================
