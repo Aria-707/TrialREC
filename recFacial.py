@@ -1105,12 +1105,20 @@ def entrenar():
         print(f"   • Modelo guardado en: {model_path}")
         print(f"{'='*60}\n")
         
+        # ⚠️ CÓDIGO TEMPORAL - ELIMINAR DESPUÉS DE LA PRESENTACIÓN
+        # Registrar estudiante en Firebase automáticamente
+        print(f"\n🔥 INICIANDO REGISTRO EN FIREBASE (TEMPORAL)...")
+        estudiante_id = registrar_estudiante_en_firebase(nombre_original)
+        # ⚠️ FIN CÓDIGO TEMPORAL
+
         return jsonify({
             "success": True,
             "mensaje": f"Modelo entrenado con {len(nuevas_rutas)} imágenes",
             "imagenes_entrenadas": len(nuevas_rutas),
-            "carpeta": nombre_filesystem
+            "carpeta": nombre_filesystem,
+            "firebase_id": estudiante_id  # ⚠️ TEMPORAL - ID generado en Firebase
         }), 200
+
         
     except Exception as e:
         print(f"✖ ERROR EN ENTRENAMIENTO: {e}")
@@ -1120,6 +1128,76 @@ def entrenar():
             "success": False,
             "error": str(e)
         }), 500
+
+# ==================== FUNCIÓN TEMPORAL PARA PRUEBAS ====================
+# ⚠️ ELIMINAR DESPUÉS DE LA PRESENTACIÓN
+# Esta función registra automáticamente estudiantes en Firebase
+# con datos de prueba durante el registro facial
+
+def registrar_estudiante_en_firebase(nombre_estudiante):
+    """
+    FUNCIÓN TEMPORAL - SOLO PARA PRUEBAS
+    Registra un estudiante en la colección 'person' de Firebase
+    con un ID aleatorio y curso por defecto "0000"
+    """
+    try:
+        import random
+        
+        # Normalizar el nombre para Firebase
+        nombre_normalizado = normalizar_nombre(nombre_estudiante)
+        
+        print(f"\n{'='*60}")
+        print(f"🔥 REGISTRANDO ESTUDIANTE EN FIREBASE (TEMPORAL)")
+        print(f"{'='*60}")
+        print(f"Nombre original: '{nombre_estudiante}'")
+        print(f"Nombre normalizado: '{nombre_normalizado}'")
+        
+        # Verificar si ya existe
+        personas_ref = db.collection('person')
+        query = personas_ref.where('type', '==', 'Estudiante').get()
+        
+        for doc in query:
+            data = doc.to_dict()
+            nombre_db = data.get('namePerson', '')
+            nombre_db_normalizado = normalizar_nombre(nombre_db)
+            
+            if nombre_db_normalizado == nombre_normalizado:
+                print(f"[!] Estudiante ya existe en Firebase con ID: {doc.id}")
+                print(f"{'='*60}\n")
+                return doc.id
+        
+        # Generar ID aleatorio entre 2000000000 y 2999999999
+        nuevo_id = str(random.randint(2000000000, 2999999999))
+        
+        # Verificar que el ID no exista (muy raro, pero por seguridad)
+        while personas_ref.document(nuevo_id).get().exists:
+            nuevo_id = str(random.randint(2000000000, 2999999999))
+        
+        # Crear el documento
+        datos_estudiante = {
+            'namePerson': nombre_normalizado,
+            'type': 'Estudiante',
+            'courses': ['0000']  # Curso por defecto para pruebas
+        }
+        
+        personas_ref.document(nuevo_id).set(datos_estudiante)
+        
+        print(f"✅ ESTUDIANTE REGISTRADO EXITOSAMENTE")
+        print(f"   ID: {nuevo_id}")
+        print(f"   Nombre: {nombre_normalizado}")
+        print(f"   Tipo: Estudiante")
+        print(f"   Cursos: ['0000']")
+        print(f"{'='*60}\n")
+        
+        return nuevo_id
+        
+    except Exception as e:
+        print(f"[✖] ERROR registrando estudiante en Firebase: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+# ==================== FIN FUNCIÓN TEMPORAL ====================
 
 
 @app.route('/test_curso')

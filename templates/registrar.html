@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <title>Registrar Estudiante - Reconocimiento Facial</title>
@@ -54,6 +55,7 @@
         transform: translateX(100px);
         opacity: 0;
       }
+
       to {
         transform: translateX(0);
         opacity: 1;
@@ -170,7 +172,7 @@
       padding: 15px;
       display: none;
     }
-    
+
     .progreso-bar {
       width: 100%;
       height: 30px;
@@ -179,7 +181,7 @@
       overflow: hidden;
       position: relative;
     }
-    
+
     .progreso-fill {
       height: 100%;
       background: linear-gradient(90deg, #00ff00, #00aa00);
@@ -191,14 +193,14 @@
       color: white;
       font-weight: bold;
     }
-    
+
     .progreso-texto {
       color: white;
       text-align: center;
       margin-top: 10px;
       font-size: 18px;
     }
-    
+
     .mensaje-instrucciones {
       background: rgba(255, 255, 0, 0.3);
       border: 2px solid yellow;
@@ -208,19 +210,19 @@
       color: white;
       max-width: 800px;
     }
-    
+
     .mensaje-instrucciones h3 {
       margin-top: 0;
       color: yellow;
     }
-    
+
     .form-container {
       background: rgba(0, 0, 0, 0.6);
       padding: 20px;
       border-radius: 10px;
       margin-top: 20px;
     }
-    
+
     .form-container input {
       padding: 10px;
       font-size: 16px;
@@ -230,7 +232,7 @@
       margin-right: 10px;
       min-width: 250px;
     }
-    
+
     .form-container button {
       padding: 10px 30px;
       font-size: 16px;
@@ -242,12 +244,12 @@
       font-weight: bold;
       transition: all 0.3s;
     }
-    
+
     .form-container button:hover {
       background: #00aa00;
       transform: scale(1.05);
     }
-    
+
     .form-container button:disabled {
       background: #666;
       color: #999;
@@ -256,6 +258,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="config-button" id="config-button" title="Configurar salón">
     <span style="font-size: 30px;">⚙️</span>
@@ -273,13 +276,13 @@
           <h2>🔐 Autenticación Requerida</h2>
           <p style="color: #aaa; margin: 0;">Solo administradores pueden cambiar el salón</p>
         </div>
-        
+
         <div class="config-modal-body">
           <input type="email" id="modal-admin-email" placeholder="Correo electrónico">
           <input type="password" id="modal-admin-password" placeholder="Contraseña">
           <div id="modal-error" class="modal-error"></div>
         </div>
-        
+
         <div class="config-modal-footer">
           <button class="btn-modal-cancelar" id="btn-modal-cancelar-auth">
             ❌ Cancelar
@@ -296,13 +299,13 @@
           <h2>⚙️ Cambiar Salón</h2>
           <p style="color: #aaa; margin: 0;">Selecciona el nuevo salón</p>
         </div>
-        
+
         <div class="config-modal-body">
           <select id="modal-salon-select">
             <option value="">-- Selecciona un salón --</option>
           </select>
         </div>
-        
+
         <div class="config-modal-footer">
           <button class="btn-modal-cancelar" id="btn-modal-cancelar">
             ❌ Cancelar
@@ -384,7 +387,7 @@
     const salonBadge = document.getElementById('salon-badge');
     const salonText = document.getElementById('salon-text');
     const configModal = document.getElementById('config-modal');
-    
+
     const authStep = document.getElementById('auth-step');
     const salonStep = document.getElementById('salon-step');
     const modalAdminEmail = document.getElementById('modal-admin-email');
@@ -392,7 +395,7 @@
     const btnModalVerificar = document.getElementById('btn-modal-verificar');
     const btnModalCancelarAuth = document.getElementById('btn-modal-cancelar-auth');
     const modalError = document.getElementById('modal-error');
-    
+
     const modalSalonSelect = document.getElementById('modal-salon-select');
     const btnModalConfirmar = document.getElementById('btn-modal-confirmar');
     const btnModalCancelar = document.getElementById('btn-modal-cancelar');
@@ -435,9 +438,9 @@
 
         if (data.success && data.salones) {
           salonesDisponibles = data.salones;
-          
+
           modalSalonSelect.innerHTML = '<option value="">-- Selecciona un salón --</option>';
-          
+
           data.salones.forEach(salon => {
             const option = document.createElement('option');
             option.value = salon;
@@ -483,14 +486,14 @@
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         const idTokenResult = await user.getIdTokenResult();
-        
+
         if (idTokenResult.claims && idTokenResult.claims.admin === true) {
           isAdmin = true;
-          
+
           if (salonesDisponibles.length === 0) {
             await cargarListaSalones();
           }
-          
+
           authStep.style.display = 'none';
           salonStep.style.display = 'block';
         } else {
@@ -502,7 +505,7 @@
         else if (error.code === 'auth/wrong-password') mensaje = 'Contraseña incorrecta';
         else if (error.code === 'auth/invalid-email') mensaje = 'Correo inválido';
         else mensaje = error.message;
-        
+
         modalError.textContent = '❌ ' + mensaje;
         modalError.style.display = 'block';
         btnModalVerificar.disabled = false;
@@ -511,7 +514,7 @@
     }
 
     btnModalVerificar.addEventListener('click', verificarAdminModal);
-    
+
     modalAdminPassword.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') verificarAdminModal();
     });
@@ -584,22 +587,22 @@
     // INICIAR CÁMARA
     async function iniciarCamara() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
             width: { ideal: 1280 },
             height: { ideal: 720 }
-          } 
+          }
         });
         video.srcObject = stream;
         await video.play();
-        
+
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        
+
         console.log('✔ Cámara iniciada:', canvas.width, 'x', canvas.height);
-        
+
         iniciarDeteccionRostros();
-        
+
       } catch (err) {
         resultado.textContent = "❌ No se pudo acceder a la cámara";
         resultado.style.color = 'red';
@@ -611,7 +614,7 @@
     function iniciarDeteccionRostros() {
       deteccionInterval = setInterval(async () => {
         if (capturando) return;
-        
+
         const tmp = document.createElement('canvas');
         tmp.width = video.videoWidth;
         tmp.height = video.videoHeight;
@@ -625,9 +628,9 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ image: imgBase64 })
           });
-          
+
           const data = await res.json();
-          
+
           if (data.rostro_detectado && data.box) {
             dibujarRostro(data.box, 'red', 'Posiciona tu rostro');
           } else {
@@ -641,7 +644,7 @@
 
     function dibujarRostro(box, color, texto) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
       const [x, y, w, h] = box;
       const mirroredX = canvas.width - x - w;
 
@@ -661,7 +664,7 @@
     // PROCESO DE CAPTURA
     async function iniciarCaptura() {
       const nombre = nombreInput.value.trim();
-      
+
       if (!nombre) {
         alert('❌ Por favor ingresa tu nombre');
         return;
@@ -697,14 +700,14 @@
           const res = await fetch('/guardar_foto', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              estudiante: nombre, 
-              foto: foto 
+            body: JSON.stringify({
+              estudiante: nombre,
+              foto: foto
             })
           });
 
           const data = await res.json();
-          
+
           if (data.ok) {
             fotosGuardadas++;
           }
@@ -741,7 +744,20 @@
         if (data.success) {
           progresoTexto.textContent = '✅ ¡Registro completado exitosamente!';
           progresoTexto.style.color = '#00ff00';
-          resultado.textContent = `✅ ${nombre} registrado correctamente`;
+
+          // ⚠️ CÓDIGO TEMPORAL - ELIMINAR DESPUÉS DE LA PRESENTACIÓN
+          let mensajeCompleto = `✅ ${nombre} registrado correctamente`;
+          if (data.firebase_id) {
+            mensajeCompleto += `\n🔥 ID en Firebase: ${data.firebase_id}`;
+            console.log('🔥 Estudiante registrado en Firebase:', {
+              nombre: nombre,
+              id: data.firebase_id,
+              curso: '0000'
+            });
+          }
+          // ⚠️ FIN CÓDIGO TEMPORAL
+
+          resultado.textContent = mensajeCompleto;
           resultado.style.color = '#00ff00';
 
           setTimeout(() => {
@@ -785,4 +801,5 @@
     });
   </script>
 </body>
+
 </html>
