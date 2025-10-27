@@ -310,53 +310,25 @@ body {
    ============================================ */
 
 .mensaje-estado {
-  margin-top: 20px;
+  position: fixed;
+  top: 24%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   padding: 15px 30px;
   border-radius: 10px;
   font-size: 24px;
-  font-weight: bold;
+  font-weight: 500;
   text-align: center;
-  min-height: 60px;
+  max-height: 20px;
+  max-width: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-}
-
-.mensaje-temprano {
-  background: linear-gradient(135deg, #00ff00, #00aa00);
-  color: #000000;
-  animation: pulsoVerde 2s infinite;
-}
-
-.mensaje-justo-a-tiempo {
-  background: linear-gradient(135deg, #00ffff, #0088ff);
-  color: #000000;
-  animation: pulsoAzul 2s infinite;
-}
-
-.mensaje-llego {
-  background: linear-gradient(135deg, #ffff00, #ffaa00);
-  color: #000000;
-  animation: pulsoAmarillo 2s infinite;
-}
-
-.mensaje-tarde {
-  background: linear-gradient(135deg, #ff6600, #ff0000);
+  z-index: 1500;
+  
+  background: #b6b6b6;
   color: #ffffff;
-  animation: pulsoRojo 2s infinite;
-}
-
-.mensaje-error {
-  background: linear-gradient(135deg, #ff0000, #aa0000);
-  color: #ffffff;
-  border: 3px solid #ff0000;
-}
-
-.emoji-grande {
-  font-size: 36px;
-  margin-right: 10px;
 }
 
 /* ============================================
@@ -602,11 +574,6 @@ body {
 
 form {
   margin-top: 20px;
-}
-
-.mensaje-error {
-  color: red;
-  margin-top: 10px;
 }
 
 .mensaje-exito {

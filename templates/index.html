@@ -108,7 +108,6 @@
 
       <!-- NUEVO: Mensaje de estado dinámico -->
       <div id="mensaje-estado" class="mensaje-estado" style="display: none;">
-        <span id="mensaje-emoji" class="emoji-grande"></span>
         <span id="mensaje-texto"></span>
       </div>
 
@@ -471,7 +470,6 @@
     // RECONOCIMIENTO FACIAL
     // ============================================
     const mensajeEstado = document.getElementById('mensaje-estado');
-    const mensajeEmoji = document.getElementById('mensaje-emoji');
     const mensajeTexto = document.getElementById('mensaje-texto');
 
     function mostrarMensaje(categoria, nombreEstudiante) {
@@ -482,32 +480,22 @@
 
       switch (categoria) {
         case 'temprano':
-          mensajeEstado.classList.add('mensaje-temprano');
-          mensajeEmoji.textContent = '🌟';
-          mensajeTexto.textContent = `¡${nombreEstudiante} llegó temprano!`;
+          mensajeTexto.textContent = `Llegaste temprano ¡Muy bien!`;
           break;
 
         case 'justo_a_tiempo':
-          mensajeEstado.classList.add('mensaje-justo-a-tiempo');
-          mensajeEmoji.textContent = '⏰';
-          mensajeTexto.textContent = `¡${nombreEstudiante} llegó justo a tiempo!`;
+          mensajeTexto.textContent = `Justo a tiempo ¡Que puntual!`;
           break;
 
         case 'llego':
-          mensajeEstado.classList.add('mensaje-llego');
-          mensajeEmoji.textContent = '👍';
-          mensajeTexto.textContent = `${nombreEstudiante} llegó`;
+          mensajeTexto.textContent = `¡Asistencia registrada! Bienvenido.`;
           break;
 
         case 'tarde':
-          mensajeEstado.classList.add('mensaje-tarde');
-          mensajeEmoji.textContent = '⚠️';
-          mensajeTexto.textContent = `${nombreEstudiante} llegó tarde`;
+          mensajeTexto.textContent = `¡Intenta llegar más temprano!`;
           break;
 
         case 'error':
-          mensajeEstado.classList.add('mensaje-error');
-          mensajeEmoji.textContent = '❌';
           mensajeTexto.textContent = 'Rostro no reconocido';
           break;
       }
