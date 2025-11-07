@@ -9,3 +9,6 @@ firebase_config_public.json
 *.xml
 salon_config.txt
 set_admin.py
+
+clave_encriptacion.key
+salt_encriptacion.key

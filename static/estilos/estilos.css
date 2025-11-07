@@ -613,8 +613,8 @@ body {
 
 .btn-cerrar-modal {
   position: absolute;
-  top: 315px;
-  right: 205px;
+  top: 15px;
+  right: 15px;
   background: transparent;
   border: none;
   font-size: 28px;
@@ -627,6 +627,7 @@ body {
   justify-content: center;
   transition: all 0.3s;
   border-radius: 50%;
+  z-index: 1;
 }
 
 .btn-cerrar-modal:hover {

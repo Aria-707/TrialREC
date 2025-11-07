@@ -12,6 +12,8 @@ from firebase_config import db
 from datetime import datetime
 import sys
 import scheduler_asistencia
+from seguridad_config import encriptar_archivo
+from auditoria import registrar_evento
 
 
 app = Flask(__name__)
@@ -401,7 +403,19 @@ def entrenar_incremental(nuevos_registros):
         lbl = label_dict[persona]
         for img_path in rutas:
             try:
-                img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+               
+                # ========== NUEVO: DESENCRIPTAR ANTES DE LEER ==========
+                from seguridad_config import desencriptar_archivo
+                
+                datos_imagen = desencriptar_archivo(img_path)
+                if datos_imagen is None:
+                    print(f"⚠️ No se pudo desencriptar {img_path}")
+                    continue
+                
+                # Convertir bytes a imagen
+                nparr = np.frombuffer(datos_imagen, np.uint8)
+                img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
+                # ====================================================
                 if img is not None:
                     facesData.append(img)
                     labels.append(lbl)
@@ -905,6 +919,14 @@ def registro():
                     if courseID:
                         registrado = registrar_asistencia(nombre_estudiante, courseID, hora_inicio)
                         
+                        # Registrar en auditoría
+                        registrar_evento(
+                            'RECONOCIMIENTO_FACIAL',
+                            f'Asistencia registrada mediante reconocimiento facial',
+                            usuario=nombre_estudiante,
+                            datos_adicionales={'curso': courseID}
+                        )
+                        
                         # CALCULAR CATEGORÍA DE LLEGADA
                         categoria = calcular_categoria_llegada(hora_inicio)
                         
@@ -1061,6 +1083,19 @@ def guardar_foto():
             
             file_size = os.path.getsize(ruta)
             print(f"✅ Foto guardada: {file_size} bytes ({tipo})")
+
+            print(f"🔒 Encriptando imagen...")
+            if encriptar_archivo(ruta):
+                print(f"✔ Imagen encriptada exitosamente")
+            else:
+                print(f"⚠️ No se pudo encriptar la imagen")
+
+            # Registrar en auditoría
+            registrar_evento(
+                'REGISTRO_DATOS_BIOMETRICOS',
+                f'Captura de imagen facial para {nombre_original}',
+                usuario=nombre_original
+            )
             
             return jsonify({
                 "ok": True, 
@@ -1723,6 +1758,14 @@ def api_eliminar_consentimiento():
         # Eliminar carpeta completa
         import shutil
         shutil.rmtree(carpeta_path)
+
+        # Registrar en auditoría
+        registrar_evento(
+            'ELIMINACION_CONSENTIMIENTO',
+            f'Consentimiento revocado y datos eliminados',
+            usuario=cedula,
+            datos_adicionales={'carpeta': carpeta}
+        )
         
         print(f"✔ Carpeta eliminada: {carpeta_path}")
         print(f"   Consentimiento revocado para cédula: {cedula}")
