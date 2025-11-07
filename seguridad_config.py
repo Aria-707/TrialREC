@@ -6,7 +6,7 @@ Sistema de encriptación para proteger datos biométricos según Ley 1581
 import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 import base64
 
@@ -32,13 +32,14 @@ def generar_o_cargar_clave():
         salt = os.urandom(16)
         password = os.urandom(32)  # Contraseña aleatoria
         
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
             iterations=100000,
             backend=default_backend()
         )
+        
         clave = base64.urlsafe_b64encode(kdf.derive(password))
         
         # Guardar clave y salt

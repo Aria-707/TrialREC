@@ -1,0 +1,729 @@
+[
+  {
+    "timestamp": "2025-11-06T22:55:50.005077",
+    "tipo": "RECONOCIMIENTO_FACIAL",
+    "descripcion": "Asistencia registrada mediante reconocimiento facial",
+    "usuario": "SHARON ARIADNA RINCON GUERRERO",
+    "datos_adicionales": {
+      "curso": "00000"
+    }
+  },
+  {
+    "timestamp": "2025-11-06T22:55:51.973043",
+    "tipo": "RECONOCIMIENTO_FACIAL",
+    "descripcion": "Asistencia registrada mediante reconocimiento facial",
+    "usuario": "CRISTIAN ALEJANDRO RODRIGUEZ RODRIGUEZ",
+    "datos_adicionales": {
+      "curso": "00000"
+    }
+  },
+  {
+    "timestamp": "2025-11-06T22:56:33.278063",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:33.663925",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:33.984837",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:34.310318",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:34.646942",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:34.983125",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:35.277961",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:35.596435",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:35.904812",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:36.220731",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:36.531421",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:36.854147",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:37.197920",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:37.543110",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:37.849142",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:38.191338",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:38.510492",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:38.825009",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:39.156987",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:39.481897",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:39.805034",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:40.119717",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:40.435031",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:40.724961",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:41.061719",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:41.389802",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:41.726845",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:42.027964",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:42.373522",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:42.705066",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:43.026904",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:43.356552",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:43.703286",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:44.024743",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:44.332386",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:44.676484",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:45.015053",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:45.334680",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:45.678112",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:45.979849",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:46.319052",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:46.648602",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:46.995122",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:47.319620",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:47.662839",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:47.984865",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:48.303321",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:48.633310",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:48.975736",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:49.318334",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:49.649990",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:49.968040",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:50.315982",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:50.636201",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:50.948689",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:51.294070",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:51.637882",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:51.959371",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:52.269331",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:52.586991",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:52.933055",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:53.319592",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:53.706801",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:54.047278",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:54.406081",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:54.773474",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:55.106548",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:55.480059",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:55.799466",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:56.155264",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:56.517613",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:56.873336",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:57.203777",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:57.537244",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:57.869135",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:58.223362",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:58.546236",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:58.897162",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:59.251542",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:59.594789",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:56:59.904536",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:00.237264",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:00.614687",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:00.974587",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:01.299418",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:01.627682",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:01.976109",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:02.321449",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:02.672427",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:03.022550",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:03.358533",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:03.692409",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:04.018746",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:04.359077",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:04.714943",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:05.064686",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:05.414723",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:05.792633",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:06.135839",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:06.481751",
+    "tipo": "REGISTRO_DATOS_BIOMETRICOS",
+    "descripcion": "Captura de imagen facial para JUAN CAMILO RINCON GUERRERO",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {}
+  },
+  {
+    "timestamp": "2025-11-06T22:57:51.980436",
+    "tipo": "RECONOCIMIENTO_FACIAL",
+    "descripcion": "Asistencia registrada mediante reconocimiento facial",
+    "usuario": "JUAN CAMILO RINCON GUERRERO",
+    "datos_adicionales": {
+      "curso": "00000"
+    }
+  }
+]
