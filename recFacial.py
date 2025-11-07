@@ -614,6 +614,10 @@ def obtener_curso_activo_con_salon(profesor_id=None, salon_requerido=None):
     """
     Obtiene el curso activo según el horario actual Y el salón configurado.
     
+    VENTANA DE REGISTRO:
+    - Abre: 5 min ANTES del inicio
+    - Cierra: 30 min DESPUÉS del inicio
+    
     Args:
         profesor_id: ID del profesor (opcional)
         salon_requerido: Salón en el que se toma asistencia
@@ -677,7 +681,7 @@ def obtener_curso_activo_con_salon(profesor_id=None, salon_requerido=None):
                             print(f"  [✔] ¡CURSO ACTIVO ENCONTRADO: {curso_id} - Grupo {group_id}!")
                             return (curso_id, resultado)
                     
-                    continue  # Siguiente curso si ya procesó grupos
+                    continue
                     
             except Exception as e:
                 print(f"    [!] No tiene grupos: {e}")
@@ -711,11 +715,14 @@ def obtener_curso_activo_con_salon(profesor_id=None, salon_requerido=None):
         traceback.print_exc()
         return (None, None)
 
-
 # ==================== FUNCIÓN AUXILIAR: VERIFICAR HORARIO Y SALÓN ====================
 def verificar_horario_salon(schedule, dia_espanol, dia_ingles, hora_actual_str, salon_requerido, origen):
     """
     Verifica si algún horario coincide con día, hora y salón.
+    
+    VENTANA DE REGISTRO:
+    - Abre: 5 min ANTES del inicio
+    - Cierra: 30 min DESPUÉS del inicio
     
     Returns:
         str: Hora de inicio si coincide, None si no
@@ -746,22 +753,23 @@ def verificar_horario_salon(schedule, dia_espanol, dia_ingles, hora_actual_str, 
         from datetime import timedelta
         
         hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M')
-        hora_fin = datetime.strptime(hora_fin_str, '%H:%M')
         hora_actual = datetime.strptime(hora_actual_str, '%H:%M')
         
+        # VENTANA DE REGISTRO:
+        # - Abre: 5 min ANTES del inicio
+        # - Cierra: 30 min DESPUÉS del inicio
         ventana_inicio = hora_inicio - timedelta(minutes=5)
-        ventana_fin = hora_fin - timedelta(minutes=15)
+        ventana_fin = hora_inicio + timedelta(minutes=30)
         
-        print(f"        Ventana: {ventana_inicio.strftime('%H:%M')} - {ventana_fin.strftime('%H:%M')}")
+        print(f"        Ventana de registro: {ventana_inicio.strftime('%H:%M')} - {ventana_fin.strftime('%H:%M')}")
         
         if ventana_inicio <= hora_actual <= ventana_fin:
-            print(f"        ✓ Hora dentro del rango")
+            print(f"        ✓ Hora dentro del rango de registro")
             return hora_inicio_str
         else:
             print(f"        ✗ Hora fuera del rango")
     
     return None
-
 
 # ==================== RUTAS ====================
 @app.route('/')
@@ -1284,6 +1292,7 @@ def test_curso():
 def obtener_proximo_curso(salon_requerido):
     """
     Obtiene información del próximo curso que iniciará en el salón configurado.
+    SOLO retorna cursos que inicien en 5 MINUTOS O MENOS.
     
     Returns:
         dict: Información del próximo curso o None
@@ -1296,7 +1305,7 @@ def obtener_proximo_curso(salon_requerido):
         dia_espanol = DIAS_INGLES_A_ESPANOL.get(dia_ingles, dia_ingles)
         hora_actual = ahora.strftime('%H:%M')
         
-        print(f"\n=== BUSCANDO PRÓXIMO CURSO ===")
+        print(f"\n=== BUSCANDO PRÓXIMO CURSO (CONTADOR) ===")
         print(f"Día: {dia_espanol}")
         print(f"Hora actual: {hora_actual}")
         print(f"Salón: {salon_requerido}")
@@ -1355,7 +1364,7 @@ def obtener_proximo_curso(salon_requerido):
             
             return proximo
         
-        print(f"[!] No hay más cursos hoy en {salon_requerido}")
+        print(f"[!] No hay cursos próximos (≤5 min) en {salon_requerido}")
         return None
         
     except Exception as e:
@@ -1364,11 +1373,12 @@ def obtener_proximo_curso(salon_requerido):
         traceback.print_exc()
         return None
 
-
 def buscar_proximo_horario(horario, dia_espanol, dia_ingles, hora_actual_str, salon_requerido, curso_id, curso_data):
     """
-    Busca si un horario es el próximo a iniciar.
-    Retorna información del curso si es posterior a la hora actual.
+    Busca si un horario está próximo a iniciar (para mostrar contador).
+    Retorna información del curso si falta entre 0 y 5 minutos para que ABRA EL REGISTRO.
+    
+    Como el registro abre 5 min antes del inicio, buscamos cursos que inicien en 5-10 minutos.
     """
     try:
         dia_horario = horario.get('day', '')
@@ -1387,24 +1397,31 @@ def buscar_proximo_horario(horario, dia_espanol, dia_ingles, hora_actual_str, sa
         hora_actual = datetime.strptime(hora_actual_str, '%H:%M')
         hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M')
         
-        # Solo considerar cursos futuros (después de la hora actual)
-        if hora_inicio <= hora_actual:
-            return None
+        # Calcular minutos hasta el INICIO de la clase
+        diferencia_minutos = (hora_inicio - hora_actual).total_seconds() / 60
         
-        # Calcular minutos para que inicie
-        diferencia = (hora_inicio - hora_actual).total_seconds() / 60
+        # ⭐ MODIFICADO: Para activar el CONTADOR
+        # El registro se abre 5 min antes del inicio
+        # Entonces, si el inicio es en 5-10 minutos, el registro abre en 0-5 minutos
+        # Solo mostrar contador si falta entre 0 y 5 minutos para que ABRA el registro
+        
+        minutos_para_apertura = diferencia_minutos - 5
+        
+        # Si ya pasó la hora de apertura o falta más de 5 min para la apertura, no mostrar
+        if minutos_para_apertura < 0 or minutos_para_apertura > 5:
+            return None
         
         return {
             'curso_id': curso_id,
             'nombre_curso': curso_data.get('nameCourse', 'Sin nombre'),
             'hora_inicio': hora_inicio_str,
-            'minutos_para_inicio': int(diferencia),
+            'minutos_para_inicio': int(minutos_para_apertura),  # Minutos para que ABRA el registro
             'salon': salon_requerido
         }
         
     except Exception as e:
         return None
-     
+    
 @app.route('/api/verificar_curso_activo', methods=['GET'])
 def api_verificar_curso_activo():
     """

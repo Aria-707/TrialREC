@@ -72,15 +72,34 @@
     </div>
   </div>
 
-  <!-- PANTALLA DE ESPERA -->
-  <div class="pantalla-espera" id="pantalla-espera">
+  <!-- PANTALLA DE CARGA -->
+  <div class="pantalla-carga" id="pantalla-carga">
+    <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="IA" class="ia-grande">
+    <div class="mensaje-carga">
+      <h2>VERIFICANDO...</h2>
+      <p>Comprobando cursos activos en el salón</p>
+      <div class="loading-spinner"></div>
+    </div>
+  </div>
+
+ <!-- PANTALLA DE ESPERA SIN CONTADOR -->
+  <div class="pantalla-espera-simple" id="pantalla-espera-simple">
     <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="IA" class="ia-grande">
 
     <div class="mensaje-espera">
       <h2>ESPERANDO...</h2>
       <p>Por el momento no hay ningún curso activo.</p>
       <p>¡Regresaré a registrar asistencia 5 minutos antes de que empiece tu clase!</p>
-      <div id="info-proximo-curso" class="info-proximo-curso" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- PANTALLA DE ESPERA CON CONTADOR -->
+  <div class="pantalla-espera-contador" id="pantalla-espera-contador">
+    <img src="{{ url_for('static', filename='imagenes/IA.png') }}" alt="IA" class="ia-grande">
+
+    <div class="mensaje-espera">
+      <h2>PRÓXIMA CLASE</h2>
+      <p>El registro de asistencia se abrirá pronto</p>
       <div class="flex-container">
         <div class="flex-item">
           <p id="nombre-proximo-curso">Cargando...</p>
@@ -134,10 +153,11 @@
       console.error('Error inicializando Firebase:', error);
     }
 
-    // VARIABLES GLOBALES
-    const pantallaEspera = document.getElementById('pantalla-espera');
+   // VARIABLES GLOBALES
+    const pantallaCarga = document.getElementById('pantalla-carga');
+    const pantallaEsperaSimple = document.getElementById('pantalla-espera-simple');
+    const pantallaEsperaContador = document.getElementById('pantalla-espera-contador');
     const pantallaReconocimiento = document.getElementById('pantalla-reconocimiento');
-    const infoProximoCurso = document.getElementById('info-proximo-curso');
     const nombreProximoCurso = document.getElementById('nombre-proximo-curso');
     const horaProximoCurso = document.getElementById('hora-proximo-curso');
     const tiempoRestante = document.getElementById('tiempo-restante');
@@ -145,7 +165,6 @@
     const video = document.getElementById('camara-video');
     const canvas = document.getElementById('overlay');
     const ctx = canvas.getContext('2d');
-    const resultado = document.getElementById('resultado-reconocimiento');
     const backendUrl = '/registro';
 
     const configButton = document.getElementById('config-button');
@@ -169,7 +188,7 @@
     let isAdmin = false;
     let intervaloVerificacion = null;
     let intervaloCuentaRegresiva = null;
-    let modoActual = null; // 'espera' o 'reconocimiento'
+    let modoActual = null; // 'cargando', 'espera_simple', 'espera_contador', 'reconocimiento'
     let camaraIniciada = false;
 
     // ============================================
@@ -183,19 +202,25 @@
         console.log('Estado del sistema:', data);
 
         if (data.curso_activo) {
-          // HAY CURSO ACTIVO - Modo reconocimiento
+          // MODO 4: HAY CURSO ACTIVO - Reconocimiento
           if (modoActual !== 'reconocimiento') {
-            console.log('✅ Activando modo reconocimiento');
+            console.log('✅ Activando modo RECONOCIMIENTO');
             activarModoReconocimiento();
           }
-        } else {
-          // NO HAY CURSO ACTIVO - Modo espera
-          if (modoActual !== 'espera') {
-            console.log('⏸️ Activando modo espera');
-            activarModoEspera(data.proximo_curso);
+        } else if (data.proximo_curso) {
+          // MODO 3: Hay curso próximo (≤5 min) - Contador
+          if (modoActual !== 'espera_contador') {
+            console.log('⏰ Activando modo ESPERA CON CONTADOR');
+            activarModoEsperaContador(data.proximo_curso);
           } else {
-            // Ya estamos en espera, solo actualizar info
+            // Ya estamos en contador, solo actualizar
             actualizarInfoProximoCurso(data.proximo_curso);
+          }
+        } else {
+          // MODO 2: No hay cursos próximos - Espera simple
+          if (modoActual !== 'espera_simple') {
+            console.log('⏸️ Activando modo ESPERA SIMPLE');
+            activarModoEsperaSimple();
           }
         }
       } catch (error) {
@@ -203,16 +228,50 @@
       }
     }
 
-    function activarModoEspera(proximoCurso) {
-      modoActual = 'espera';
-
-      // Ocultar reconocimiento
+    function ocultarTodasPantallas() {
+      pantallaCarga.classList.remove('visible');
+      pantallaEsperaSimple.classList.remove('visible');
+      pantallaEsperaContador.classList.remove('visible');
       pantallaReconocimiento.classList.remove('visible');
+    }
 
-      // Mostrar espera
-      pantallaEspera.classList.add('visible');
+    function activarModoCargando() {
+      modoActual = 'cargando';
+      ocultarTodasPantallas();
+      pantallaCarga.classList.add('visible');
+      detenerCamara();
+      detenerContador();
+    }
 
-      // Detener cámara si está activa
+    function activarModoEsperaSimple() {
+      modoActual = 'espera_simple';
+      ocultarTodasPantallas();
+      pantallaEsperaSimple.classList.add('visible');
+      detenerCamara();
+      detenerContador();
+    }
+
+    function activarModoEsperaContador(proximoCurso) {
+      modoActual = 'espera_contador';
+      ocultarTodasPantallas();
+      pantallaEsperaContador.classList.add('visible');
+      detenerCamara();
+      actualizarInfoProximoCurso(proximoCurso);
+      iniciarCuentaRegresiva(proximoCurso);
+    }
+
+    function activarModoReconocimiento() {
+      modoActual = 'reconocimiento';
+      ocultarTodasPantallas();
+      pantallaReconocimiento.classList.add('visible');
+      detenerContador();
+      
+      if (!camaraIniciada) {
+        iniciarCamara();
+      }
+    }
+
+    function detenerCamara() {
       if (camaraIniciada && video.srcObject) {
         const tracks = video.srcObject.getTracks();
         tracks.forEach(track => track.stop());
@@ -220,78 +279,54 @@
         camaraIniciada = false;
         console.log('📷 Cámara detenida');
       }
-
-      // Configurar info del próximo curso
-      actualizarInfoProximoCurso(proximoCurso);
-
-      // Iniciar cuenta regresiva
-      if (proximoCurso) {
-        iniciarCuentaRegresiva(proximoCurso);
-      }
     }
 
-    function activarModoReconocimiento() {
-      modoActual = 'reconocimiento';
-
-      // Detener cuenta regresiva
+    function detenerContador() {
       if (intervaloCuentaRegresiva) {
         clearInterval(intervaloCuentaRegresiva);
         intervaloCuentaRegresiva = null;
-      }
-
-      // Ocultar espera
-      pantallaEspera.classList.remove('visible');
-
-      // Mostrar reconocimiento
-      pantallaReconocimiento.classList.add('visible');
-
-      // Iniciar cámara si no está activa
-      if (!camaraIniciada) {
-        iniciarCamara();
       }
     }
 
     function actualizarInfoProximoCurso(proximoCurso) {
       if (proximoCurso) {
-        infoProximoCurso.style.display = 'block';
-        nombreProximoCurso.textContent = "Próxima clase: " + proximoCurso.nombre_curso;
+        nombreProximoCurso.textContent = proximoCurso.nombre_curso;
         horaProximoCurso.textContent = `Hora de inicio: ${proximoCurso.hora_inicio}`;
-      } else {
-        infoProximoCurso.style.display = 'none';
       }
     }
 
     function iniciarCuentaRegresiva(proximoCurso) {
-      // Limpiar intervalo anterior si existe
-      if (intervaloCuentaRegresiva) {
-        clearInterval(intervaloCuentaRegresiva);
-      }
+      detenerContador();
 
       intervaloCuentaRegresiva = setInterval(() => {
-        // Recalcular minutos restantes
         const ahora = new Date();
         const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
 
         const [horaInicio, minInicio] = proximoCurso.hora_inicio.split(':').map(Number);
         const horaInicioCurso = horaInicio * 60 + minInicio;
 
-        // Restar 5 minutos para la activación anticipada
-        const horaActivacion = horaInicioCurso - 5;
+        // El registro se abre 5 minutos ANTES
+        const horaApertura = horaInicioCurso - 5;
 
-        let minutosRestantes = horaActivacion - horaActual;
+        let minutosRestantes = horaApertura - horaActual;
+        let segundosRestantes = (60 - ahora.getSeconds()) % 60;
 
-        if (minutosRestantes <= 0) {
+        if (minutosRestantes < 0 || (minutosRestantes === 0 && segundosRestantes === 0)) {
           tiempoRestante.textContent = '00:00';
-          clearInterval(intervaloCuentaRegresiva);
-          // Verificar inmediatamente
+          detenerContador();
           verificarCursoActivo();
           return;
         }
 
-        const horas = Math.floor(minutosRestantes / 60);
-        const minutos = minutosRestantes % 60;
+        // Ajustar segundos
+        if (segundosRestantes === 60) {
+          segundosRestantes = 0;
+        } else if (segundosRestantes > 0) {
+          minutosRestantes -= 1;
+        }
 
-        tiempoRestante.textContent = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+        tiempoRestante.textContent = 
+          `${String(minutosRestantes).padStart(2, '0')}:${String(segundosRestantes).padStart(2, '0')}`;
       }, 1000);
     }
 
@@ -353,7 +388,6 @@
       isAdmin = false;
     });
 
-    // ⬇️ EVENTO BOTÓN CERRAR (X)
     btnCerrarModal.addEventListener('click', () => {
       configModal.classList.remove('active');
     });
@@ -448,7 +482,7 @@
 
         configModal.classList.remove('active');
 
-        // Verificar inmediatamente el nuevo estado
+        activarModoCargando();
         await verificarCursoActivo();
 
       } catch (error) {
@@ -476,37 +510,31 @@
 
     function mostrarMensaje(categoria, nombreEstudiante) {
       mensajeEstado.style.display = 'flex';
-
-      // Limpiar clases anteriores
       mensajeEstado.className = 'mensaje-estado';
 
       switch (categoria) {
         case 'temprano':
           mensajeTexto.textContent = `Llegaste temprano ¡Muy bien!`;
           break;
-
         case 'justo_a_tiempo':
           mensajeTexto.textContent = `Justo a tiempo ¡Que puntual!`;
           break;
-
         case 'llego':
           mensajeTexto.textContent = `¡Asistencia registrada! Bienvenido.`;
           break;
-
         case 'tarde':
           mensajeTexto.textContent = `¡Intenta llegar más temprano!`;
           break;
-
         case 'error':
           mensajeTexto.textContent = 'Rostro no reconocido';
           break;
       }
 
-      // Ocultar mensaje después de 5 segundos
       setTimeout(() => {
         mensajeEstado.style.display = 'none';
       }, 5000);
     }
+
     async function iniciarCamara() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -518,7 +546,6 @@
         console.log('📷 Cámara iniciada');
         setInterval(enviarFotograma, 2000);
       } catch (err) {
-        resultado.textContent = "No se pudo acceder a la cámara.";
         console.error("Error cámara:", err);
       }
     }
@@ -562,7 +589,6 @@
         if (data.estado === 'reconocido') {
           dibujar(data.box, true, data.confianza, data.estudiante);
 
-          // MOSTRAR MENSAJE SEGÚN CATEGORÍA
           if (data.categoria_llegada) {
             mostrarMensaje(data.categoria_llegada, data.estudiante);
           }
@@ -581,10 +607,10 @@
     // INICIALIZACIÓN
     // ============================================
     async function inicializar() {
+      activarModoCargando();
       await cargarSalonActual();
       await verificarCursoActivo();
 
-      // Verificar cada 30 segundos
       intervaloVerificacion = setInterval(verificarCursoActivo, 30000);
 
       console.log('🚀 Sistema iniciado - Verificación automática cada 30s');
