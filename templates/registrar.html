@@ -66,24 +66,24 @@
       </div>
     </div>
   </div>
-<!-- POPUP DE TÉRMINOS Y CONDICIONES -->
+  <!-- POPUP DE TÉRMINOS Y CONDICIONES -->
   <div class="terminos-overlay" id="terminos-overlay">
     <div class="terminos-popup">
       <h2>Tratamiento de Datos Personales</h2>
       <div class="terminos-contenido">
         <p><strong>Ley 1581 de 2012 - Protección de Datos Personales</strong></p>
-        
-        <p>De conformidad con lo establecido en la Ley 1581 de 2012 y el Decreto 1377 de 2013, 
-        se informa que los datos personales (imágenes faciales y nombre completo) que proporcione 
-        serán tratados bajo los siguientes términos:</p>
-        
+
+        <p>De conformidad con lo establecido en la Ley 1581 de 2012 y el Decreto 1377 de 2013,
+          se informa que los datos personales (imágenes faciales y nombre completo) que proporcione
+          serán tratados bajo los siguientes términos:</p>
+
         <h3>Finalidad del tratamiento:</h3>
         <ul>
           <li>Registro biométrico facial para control de asistencia</li>
           <li>Identificación del estudiante mediante reconocimiento facial</li>
           <li>Gestión académica y administrativa</li>
         </ul>
-        
+
         <h3>Derechos del titular:</h3>
         <ul>
           <li>Conocer, actualizar y rectificar sus datos personales</li>
@@ -92,16 +92,17 @@
           <li>Presentar quejas ante la Superintendencia de Industria y Comercio</li>
           <li>Revocar la autorización y/o solicitar la supresión del dato</li>
         </ul>
-        
-        <p>Al aceptar, usted autoriza de manera libre, expresa, voluntaria e informada 
-        el tratamiento de sus datos personales conforme a la política de privacidad de la institución.</p>
+
+        <p>Al aceptar, usted autoriza de manera libre, expresa, voluntaria e informada
+          el tratamiento de sus datos personales conforme a la política de privacidad de la institución.</p>
       </div>
-      
+
       <div class="terminos-checkbox">
         <input type="checkbox" id="aceptar-terminos">
-        <label for="aceptar-terminos">He leído y acepto los términos y condiciones del tratamiento de datos personales</label>
+        <label for="aceptar-terminos">He leído y acepto los términos y condiciones del tratamiento de datos
+          personales</label>
       </div>
-      
+
       <div class="terminos-botones">
         <button class="btn-terminos-cancelar" id="btn-terminos-cancelar">Cancelar</button>
         <button class="btn-terminos-aceptar" id="btn-terminos-aceptar" disabled>Aceptar y Continuar</button>
@@ -263,7 +264,7 @@
     btnCerrarModal.addEventListener('click', () => {
       configModal.classList.remove('active');
     });
-    
+
     // VERIFICAR ADMIN
     async function verificarAdminModal() {
       const email = modalAdminEmail.value.trim();
@@ -380,16 +381,17 @@
     // ============================================
     // TÉRMINOS Y CONDICIONES
     // ============================================
-    
+
     const terminosOverlay = document.getElementById('terminos-overlay');
     const aceptarTerminosCheckbox = document.getElementById('aceptar-terminos');
     const btnTerminosAceptar = document.getElementById('btn-terminos-aceptar');
     const btnTerminosCancelar = document.getElementById('btn-terminos-cancelar');
 
-    // Mostrar popup al cargar la página
-    window.addEventListener('load', () => {
-      terminosOverlay.classList.add('active');
-    });
+    // Mostrar popup INMEDIATAMENTE (sin esperar al evento load)
+    terminosAceptados = false;
+    aceptarTerminosCheckbox.checked = false;
+    btnTerminosAceptar.disabled = true;
+    terminosOverlay.classList.add('active');
 
     // Habilitar botón solo si se acepta el checkbox
     aceptarTerminosCheckbox.addEventListener('change', (e) => {
