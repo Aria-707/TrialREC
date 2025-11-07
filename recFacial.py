@@ -319,7 +319,7 @@ def registrar_asistencia(nombre_estudiante, courseID=None, hora_inicio_clase=Non
             # Agregar automáticamente al estudiante al registro de asistencia
             print(f"🔧 AGREGANDO ESTUDIANTE AL DOCUMENTO (TEMPORAL)")
             
-            # Verificar si el estudiante tiene el curso "0000"
+            # Verificar si el estudiante tiene el curso "00000"
             estudiante_ref = db.collection('person').document(estudianteID)
             estudiante_doc = estudiante_ref.get()
             
@@ -1213,7 +1213,7 @@ def registrar_estudiante_en_firebase(nombre_estudiante):
         datos_estudiante = {
             'namePerson': nombre_normalizado,
             'type': 'Estudiante',
-            'courses': ['0000']  # Curso por defecto para pruebas
+            'courses': ['00000']  # Curso por defecto para pruebas
         }
         
         personas_ref.document(nuevo_id).set(datos_estudiante)
@@ -1222,7 +1222,7 @@ def registrar_estudiante_en_firebase(nombre_estudiante):
         print(f"   ID: {nuevo_id}")
         print(f"   Nombre: {nombre_normalizado}")
         print(f"   Tipo: Estudiante")
-        print(f"   Cursos: ['0000']")
+        print(f"   Cursos: ['00000']")
         print(f"{'='*60}\n")
         
         return nuevo_id

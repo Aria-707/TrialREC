@@ -142,7 +142,6 @@
     const modalAdminEmail = document.getElementById('modal-admin-email');
     const modalAdminPassword = document.getElementById('modal-admin-password');
     const btnModalVerificar = document.getElementById('btn-modal-verificar');
-    const btnModalCancelarAuth = document.getElementById('btn-modal-cancelar-auth');
     const modalError = document.getElementById('modal-error');
 
     const modalSalonSelect = document.getElementById('modal-salon-select');
@@ -319,11 +318,6 @@
         btnModalConfirmar.disabled = false;
         btnModalConfirmar.textContent = 'Confirmar';
       }
-    });
-
-    // CANCELAR
-    btnModalCancelarAuth.addEventListener('click', () => {
-      configModal.classList.remove('active');
     });
 
     btnModalCancelar.addEventListener('click', () => {
