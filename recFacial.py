@@ -1615,6 +1615,132 @@ def api_limpiar_registros():
 def firebase_config():
     return send_file("./firebase_config_public.json")
 
+
+@app.route('/gestion-datos')
+def gestion_datos():
+    """Página de gestión de datos personales"""
+    return render_template('gestionDatos.html')
+
+@app.route('/api/buscar_estudiante_cedula', methods=['POST'])
+def api_buscar_estudiante_cedula():
+    """
+    Busca un estudiante por su cédula (que es el ID del documento en Firebase).
+    """
+    try:
+        data = request.get_json()
+        cedula = data.get('cedula', '').strip()
+        
+        if not cedula:
+            return jsonify({
+                "success": False,
+                "error": "Cédula requerida"
+            }), 400
+        
+        print(f"\n=== BUSCANDO ESTUDIANTE POR CÉDULA ===")
+        print(f"Cédula buscada: {cedula}")
+        
+        # Buscar documento directamente por ID (la cédula ES el ID del documento)
+        personas_ref = db.collection('person')
+        doc = personas_ref.document(cedula).get()
+        
+        if not doc.exists:
+            print(f"[✖] No se encontró documento con ID: {cedula}")
+            return jsonify({
+                "success": False,
+                "error": "No se encontró un estudiante con esa cédula"
+            }), 404
+        
+        doc_data = doc.to_dict()
+        tipo = doc_data.get('type', '')
+        
+        # Verificar que sea estudiante
+        if tipo != 'Estudiante':
+            print(f"[✖] El documento existe pero no es un estudiante (tipo: {tipo})")
+            return jsonify({
+                "success": False,
+                "error": "La cédula no corresponde a un estudiante"
+            }), 404
+        
+        estudiante_encontrado = {
+            'id': doc.id,
+            'nombre': doc_data.get('namePerson', ''),
+            'cedula': doc.id  # La cédula es el ID del documento
+        }
+        
+        # Verificar si tiene consentimiento (carpeta en Data)
+        nombre_carpeta = sanitizar_nombre_filesystem(estudiante_encontrado['nombre'])
+        carpeta_path = os.path.join(dataPath, nombre_carpeta)
+        tiene_consentimiento = os.path.exists(carpeta_path)
+        
+        estudiante_encontrado['tiene_consentimiento'] = tiene_consentimiento
+        estudiante_encontrado['carpeta_datos'] = nombre_carpeta if tiene_consentimiento else None
+        
+        print(f"✔ Estudiante encontrado: {estudiante_encontrado['nombre']}")
+        print(f"   ID/Cédula: {estudiante_encontrado['cedula']}")
+        print(f"   Carpeta: {nombre_carpeta}")
+        print(f"   Consentimiento: {'Sí' if tiene_consentimiento else 'No'}")
+        print(f"{'='*50}\n")
+        
+        return jsonify({
+            "success": True,
+            "estudiante": estudiante_encontrado
+        }), 200
+        
+    except Exception as e:
+        print(f"[✖] ERROR en buscar_estudiante_cedula: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/eliminar_consentimiento', methods=['POST'])
+def api_eliminar_consentimiento():
+    """
+    Elimina el consentimiento del estudiante borrando su carpeta de datos.
+    """
+    try:
+        data = request.get_json()
+        cedula = data.get('cedula', '').strip()
+        carpeta = data.get('carpeta', '').strip()
+        
+        if not cedula or not carpeta:
+            return jsonify({
+                "success": False,
+                "error": "Datos incompletos"
+            }), 400
+        
+        # Verificar que la carpeta existe
+        carpeta_path = os.path.join(dataPath, carpeta)
+        
+        if not os.path.exists(carpeta_path):
+            return jsonify({
+                "success": False,
+                "error": "La carpeta de datos no existe"
+            }), 404
+        
+        # Eliminar carpeta completa
+        import shutil
+        shutil.rmtree(carpeta_path)
+        
+        print(f"✔ Carpeta eliminada: {carpeta_path}")
+        print(f"   Consentimiento revocado para cédula: {cedula}")
+        
+        return jsonify({
+            "success": True,
+            "mensaje": "Consentimiento eliminado exitosamente"
+        }), 200
+        
+    except Exception as e:
+        print(f"[✖] ERROR en eliminar_consentimiento: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+    
 if __name__ == '__main__':
     print("\n" + "="*60)
     print("🚀 INICIANDO SERVIDOR FLASK")

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestión de Datos Personales</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
+</head>
+<body>
+  <!-- Botón de volver -->
+  <div class="btn-volver" id="btn-volver" title="Volver al inicio">
+    <span style="font-size: 24px;">← Volver</span>
+  </div>
+
+  <div class="contenedor-principal">
+    <div class="gestion-container">
+      
+      <!-- PASO 1: Ingreso de cédula -->
+      <div id="paso-cedula" class="paso-gestion">
+        <div class="gestion-header">
+          <h1>Gestión de Datos Personales</h1>
+          <p>Ingresa tu número de cédula para continuar</p>
+        </div>
+
+        <div class="gestion-body">
+          <input type="text" id="input-cedula" placeholder="Número de cédula" maxlength="15">
+          <button id="btn-buscar-cedula" class="btn-gestion-primary">Buscar</button>
+          <p id="error-cedula" class="error-message" style="display: none;"></p>
+        </div>
+      </div>
+
+      <!-- PASO 2: Confirmación de identidad -->
+      <div id="paso-confirmacion" class="paso-gestion" style="display: none;">
+        <div class="gestion-header">
+          <h1>Confirmación de Identidad</h1>
+          <p>¿Esta información corresponde a tu identidad?</p>
+        </div>
+
+        <div class="gestion-body">
+          <div class="info-estudiante">
+            <p><strong>Nombre:</strong> <span id="nombre-estudiante"></span></p>
+            <p><strong>Cédula:</strong> <span id="cedula-estudiante"></span></p>
+          </div>
+
+          <div class="botones-confirmacion">
+            <button id="btn-no-soy-yo" class="btn-gestion-secondary">No soy yo</button>
+            <button id="btn-si-soy-yo" class="btn-gestion-primary">Sí, soy yo</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PASO 3: Resumen de consentimiento -->
+      <div id="paso-resumen" class="paso-gestion" style="display: none;">
+        <div class="gestion-header">
+          <h1>Estado de Consentimiento</h1>
+        </div>
+
+        <div class="gestion-body">
+          <div id="resumen-con-consentimiento" style="display: none;">
+            <div class="estado-consentimiento activo">
+              <h2>✅ Consentimiento Activo</h2>
+              <p>Actualmente tienes consentimiento activo para el tratamiento de tus datos biométricos faciales.</p>
+            </div>
+
+            <div class="info-datos">
+              <p><strong>Nombre:</strong> <span id="resumen-nombre"></span></p>
+            </div>
+
+            <div class="acciones-consentimiento">
+              <button id="btn-ver-aviso" class="btn-gestion-secondary">📄 Ver Aviso de Privacidad</button>
+              <button id="btn-eliminar-consentimiento" class="btn-gestion-danger">🗑️ Eliminar Consentimiento</button>
+            </div>
+          </div>
+
+          <div id="resumen-sin-consentimiento" style="display: none;">
+            <div class="estado-consentimiento inactivo">
+              <h2>❌ Sin Consentimiento</h2>
+              <p>Actualmente no tienes consentimiento registrado para el tratamiento de datos biométricos.</p>
+            </div>
+
+            <div class="info-registro">
+              <p>Si quieres aceptar el tratamiento de datos y quedar registrado en el sistema con tus datos faciales, puedes dirigirte al apartado de <a href="/registrar" class="enlace-registro">registrar un estudiante nuevo</a>.</p>
+            </div>
+
+            <button id="btn-ver-aviso-sin" class="btn-gestion-secondary">📄 Ver Aviso de Privacidad</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal de Aviso de Privacidad -->
+  <div class="aviso-modal" id="aviso-modal">
+    <div class="aviso-modal-content">
+      <button class="btn-cerrar-modal-aviso" id="btn-cerrar-aviso">✖</button>
+      
+      <div class="aviso-header">
+        <h2>Aviso de Privacidad</h2>
+      </div>
+
+      <div class="aviso-body">
+        <p><strong>Responsable del Tratamiento:</strong></p>
+        <p>El responsable del tratamiento de sus datos personales es la <strong>Universidad de Cundinamarca</strong>.</p>
+
+        <p><strong>Finalidad del Tratamiento:</strong></p>
+        <p>Los datos recolectados de imágenes faciales se usarán exclusivamente para fines de <strong>registro y control de asistencia académica</strong>.</p>
+
+        <p><strong>Derechos del Titular:</strong></p>
+        <ul>
+          <li>Conocer, actualizar y rectificar sus datos personales</li>
+          <li>Solicitar prueba de la autorización otorgada</li>
+          <li>Revocar la autorización y/o solicitar la supresión del dato</li>
+          <li>Presentar quejas ante la Superintendencia de Industria y Comercio</li>
+        </ul>
+
+        <p><strong>Política de Tratamiento de Datos:</strong></p>
+        <p>Para más información sobre el uso de sus datos y sus derechos, puede consultar nuestra Política de Tratamiento de Datos completa en la página web de la institución.</p>
+      </div>
+
+      <button id="btn-cerrar-aviso-footer" class="btn-gestion-primary">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmación de Eliminación -->
+  <div class="confirmacion-modal" id="confirmacion-modal">
+    <div class="confirmacion-modal-content">
+      <div class="confirmacion-header">
+        <h2>⚠️ Confirmar Eliminación</h2>
+      </div>
+
+      <div class="confirmacion-body">
+        <p><strong>Eliminar el permiso del tratamiento de datos resultará en:</strong></p>
+        <ul>
+          <li>La eliminación total de tus datos faciales en el sistema</li>
+          <li>No podrás volver a registrar tu asistencia con reconocimiento facial</li>
+          <li>Deberás usar métodos alternativos de registro de asistencia</li>
+        </ul>
+
+        <p class="advertencia">Esta acción no se puede deshacer.</p>
+
+        <p><strong>¿Estás seguro de que deseas continuar?</strong></p>
+      </div>
+
+      <div class="confirmacion-botones">
+        <button id="btn-cancelar-eliminacion" class="btn-gestion-secondary">Cancelar</button>
+        <button id="btn-confirmar-eliminacion" class="btn-gestion-danger">Sí, estoy seguro</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="logo logo-derecha">
+    <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
+  </div>
+
+  <script>
+    // Variables globales
+    let estudianteActual = null;
+
+    const pasoCedula = document.getElementById('paso-cedula');
+    const pasoConfirmacion = document.getElementById('paso-confirmacion');
+    const pasoResumen = document.getElementById('paso-resumen');
+
+    const inputCedula = document.getElementById('input-cedula');
+    const btnBuscarCedula = document.getElementById('btn-buscar-cedula');
+    const errorCedula = document.getElementById('error-cedula');
+
+    const nombreEstudiante = document.getElementById('nombre-estudiante');
+    const cedulaEstudiante = document.getElementById('cedula-estudiante');
+    const btnNoSoyYo = document.getElementById('btn-no-soy-yo');
+    const btnSiSoyYo = document.getElementById('btn-si-soy-yo');
+
+    const resumenConConsentimiento = document.getElementById('resumen-con-consentimiento');
+    const resumenSinConsentimiento = document.getElementById('resumen-sin-consentimiento');
+    const resumenNombre = document.getElementById('resumen-nombre');
+    const resumenCarpeta = document.getElementById('resumen-carpeta');
+
+    const btnVerAviso = document.getElementById('btn-ver-aviso');
+    const btnVerAvisoSin = document.getElementById('btn-ver-aviso-sin');
+    const btnEliminarConsentimiento = document.getElementById('btn-eliminar-consentimiento');
+
+    const avisoModal = document.getElementById('aviso-modal');
+    const btnCerrarAviso = document.getElementById('btn-cerrar-aviso');
+    const btnCerrarAvisoFooter = document.getElementById('btn-cerrar-aviso-footer');
+
+    const confirmacionModal = document.getElementById('confirmacion-modal');
+    const btnCancelarEliminacion = document.getElementById('btn-cancelar-eliminacion');
+    const btnConfirmarEliminacion = document.getElementById('btn-confirmar-eliminacion');
+
+    const btnVolver = document.getElementById('btn-volver');
+
+    // Volver al inicio
+    btnVolver.addEventListener('click', () => {
+      window.location.href = '/';
+    });
+
+    // Buscar por cédula
+    btnBuscarCedula.addEventListener('click', buscarEstudiante);
+    inputCedula.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') buscarEstudiante();
+    });
+
+    async function buscarEstudiante() {
+      const cedula = inputCedula.value.trim();
+
+      if (!cedula) {
+        mostrarError('Por favor ingresa un número de cédula');
+        return;
+      }
+
+      btnBuscarCedula.disabled = true;
+      btnBuscarCedula.textContent = 'Buscando...';
+      errorCedula.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/buscar_estudiante_cedula', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cedula: cedula })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          estudianteActual = data.estudiante;
+          mostrarConfirmacion();
+        } else {
+          mostrarError(data.error || 'No se encontró el estudiante');
+        }
+      } catch (error) {
+        mostrarError('Error al buscar estudiante: ' + error.message);
+      } finally {
+        btnBuscarCedula.disabled = false;
+        btnBuscarCedula.textContent = 'Buscar';
+      }
+    }
+
+    function mostrarError(mensaje) {
+      errorCedula.textContent = mensaje;
+      errorCedula.style.display = 'block';
+    }
+
+    function mostrarConfirmacion() {
+      pasoCedula.style.display = 'none';
+      pasoConfirmacion.style.display = 'block';
+      nombreEstudiante.textContent = estudianteActual.nombre;
+      cedulaEstudiante.textContent = estudianteActual.cedula;
+    }
+
+    btnNoSoyYo.addEventListener('click', () => {
+      pasoConfirmacion.style.display = 'none';
+      pasoCedula.style.display = 'block';
+      inputCedula.value = '';
+      errorCedula.style.display = 'none';
+      estudianteActual = null;
+    });
+
+    btnSiSoyYo.addEventListener('click', () => {
+      pasoConfirmacion.style.display = 'none';
+      pasoResumen.style.display = 'block';
+
+      if (estudianteActual.tiene_consentimiento) {
+        resumenConConsentimiento.style.display = 'block';
+        resumenSinConsentimiento.style.display = 'none';
+        resumenNombre.textContent = estudianteActual.nombre;
+        resumenCarpeta.textContent = estudianteActual.carpeta_datos;
+      } else {
+        resumenConConsentimiento.style.display = 'none';
+        resumenSinConsentimiento.style.display = 'block';
+      }
+    });
+
+    // Mostrar aviso de privacidad
+    btnVerAviso.addEventListener('click', () => avisoModal.classList.add('active'));
+    btnVerAvisoSin.addEventListener('click', () => avisoModal.classList.add('active'));
+    btnCerrarAviso.addEventListener('click', () => avisoModal.classList.remove('active'));
+    btnCerrarAvisoFooter.addEventListener('click', () => avisoModal.classList.remove('active'));
+
+    avisoModal.addEventListener('click', (e) => {
+      if (e.target === avisoModal) avisoModal.classList.remove('active');
+    });
+
+    // Eliminar consentimiento
+    btnEliminarConsentimiento.addEventListener('click', () => {
+      confirmacionModal.classList.add('active');
+    });
+
+    btnCancelarEliminacion.addEventListener('click', () => {
+      confirmacionModal.classList.remove('active');
+    });
+
+    btnConfirmarEliminacion.addEventListener('click', async () => {
+      btnConfirmarEliminacion.disabled = true;
+      btnConfirmarEliminacion.textContent = 'Eliminando...';
+
+      try {
+        const response = await fetch('/api/eliminar_consentimiento', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            cedula: estudianteActual.cedula,
+            carpeta: estudianteActual.carpeta_datos
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('✅ Consentimiento eliminado exitosamente');
+          window.location.href = '/';
+        } else {
+          alert('❌ Error: ' + (data.error || 'No se pudo eliminar el consentimiento'));
+        }
+      } catch (error) {
+        alert('❌ Error: ' + error.message);
+      } finally {
+        btnConfirmarEliminacion.disabled = false;
+        btnConfirmarEliminacion.textContent = 'Sí, estoy seguro';
+        confirmacionModal.classList.remove('active');
+      }
+    });
+  </script>
+</body>
+</html>

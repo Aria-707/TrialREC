@@ -16,10 +16,16 @@
     <span style="font-size: 30px;">⚙</span>
   </div>
 
+  <!-- Botón de FAQ -->
+  <div class="faq-button" id="faq-button" title="Ayuda y preguntas frecuentes">
+    <span style="font-size: 30px;">?</span>
+  </div>
+
   <!-- Badge mostrando salón actual -->
   <div class="salon-badge" id="salon-badge">
     <span id="salon-text">Cargando...</span>
   </div>
+  
 
   <!-- Modal de configuración -->
   <div class="config-modal" id="config-modal">
@@ -67,6 +73,41 @@
           <button class="btn-modal-confirmar" id="btn-modal-confirmar">
             Confirmar
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de FAQ -->
+  <div class="faq-modal" id="faq-modal">
+    <div class="faq-modal-content">
+      <button class="btn-cerrar-modal-faq" id="btn-cerrar-faq">✖</button>
+      
+      <div class="faq-header">
+        <h2>Preguntas Frecuentes</h2>
+      </div>
+
+      <div class="faq-body">
+        <div class="faq-item">
+          <h3>¿Qué hacer si el sistema no me reconoce?</h3>
+          <p>Asegúrate de estar bien iluminado, mirar directamente a la cámara y estar a una distancia adecuada. Si el problema persiste, ingresa a clase e informa al docente del fallo en el sistema para que modifique tu asistencia.</p>
+        </div>
+
+        <div class="faq-item">
+          <h3>¿Qué hacer si no quiero dar mi consentimiento al tratamiento de datos?</h3>
+          <p>El tratamiento de datos biométricos es voluntario. Si no deseas proporcionar tu consentimiento, deberás registrar tu asistencia hablando con el docente.</p>
+        </div>
+
+        
+        <div class="faq-item">
+          <h3>¿Cómo gestiono mis datos personales y consiento al tratamiento?</h3>
+          <p>Los datos de nombre, cédula y horario son brindados por la universidad; si quieres modificarlos, acércate a los directivos de la institución.</p>
+          <p>Si quieres gestionar tu consentimiento al tratamiento de datos biométricos para el reconocimiento facial, haz clic en <a href="/gestion-datos" class="enlace-gestion">este enlace</a>.</p>
+        </div>
+
+        <div class="faq-item">
+          <h3>¿Qué hacer si el sistema me registró como otra persona?</h3>
+          <p>Reporta inmediatamente el error al docente para que pueda corregir el registro manualmente.</p>
         </div>
       </div>
     </div>
@@ -329,6 +370,27 @@
           `${String(minutosRestantes).padStart(2, '0')}:${String(segundosRestantes).padStart(2, '0')}`;
       }, 1000);
     }
+
+    // ============================================
+    // GESTIÓN DE FAQ
+    // ============================================
+    const faqButton = document.getElementById('faq-button');
+    const faqModal = document.getElementById('faq-modal');
+    const btnCerrarFaq = document.getElementById('btn-cerrar-faq');
+
+    faqButton.addEventListener('click', () => {
+      faqModal.classList.add('active');
+    });
+
+    btnCerrarFaq.addEventListener('click', () => {
+      faqModal.classList.remove('active');
+    });
+
+    faqModal.addEventListener('click', (e) => {
+      if (e.target === faqModal) {
+        faqModal.classList.remove('active');
+      }
+    });
 
     // ============================================
     // GESTIÓN DE CONFIGURACIÓN DE SALÓN

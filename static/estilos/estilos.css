@@ -198,6 +198,134 @@ body {
   animation: slideIn 0.5s ease;
 }
 
+/* ============================================
+   BOTÓN DE FAQ
+   ============================================ */
+
+.faq-button {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  z-index: 1000;
+  background: #3B7D23;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: white;
+  font-weight: bold;
+}
+
+.faq-button:hover {
+  transform: scale(1.1);
+  background: #275317;
+}
+
+/* ============================================
+   MODAL DE FAQ
+   ============================================ */
+
+.faq-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+
+.faq-modal.active {
+  display: flex;
+}
+
+.faq-modal-content {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
+  width: 90%;
+  position: relative;
+}
+
+.btn-cerrar-modal-faq {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  color: #3B7D23;
+  cursor: pointer;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  border-radius: 50%;
+}
+
+.btn-cerrar-modal-faq:hover {
+  background: rgba(59, 125, 35, 0.1);
+  transform: rotate(90deg);
+}
+
+.faq-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.faq-header h2 {
+  color: #3B7D23;
+  margin: 0;
+  font-size: 28px;
+}
+
+.faq-body {
+  color: #333;
+}
+
+.faq-item {
+  margin-bottom: 25px;
+  padding: 20px;
+  background: #f5f5f5;
+  border-radius: 10px;
+  border-left: 4px solid #3B7D23;
+}
+
+.faq-item h3 {
+  color: #3B7D23;
+  margin: 0 0 10px 0;
+  font-size: 18px;
+}
+
+.faq-item p {
+  margin: 10px 0;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.enlace-gestion {
+  color: #3B7D23;
+  font-weight: bold;
+  text-decoration: underline;
+  transition: all 0.3s;
+}
+
+.enlace-gestion:hover {
+  color: #275317;
+}
+
 @keyframes slideIn {
   from {
     transform: translateX(100px);
@@ -935,4 +1063,348 @@ form {
   background: #b6b6b6;
   color: #666;
   cursor: not-allowed;
+}
+
+/* ============================================
+   ESTILOS DE GESTIÓN DE DATOS
+   ============================================ */
+
+.btn-volver {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  background: #747474;
+  border-radius: 30px;
+  padding: 12px 25px;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.btn-volver:hover {
+  background: #404040;
+  transform: scale(1.05);
+}
+
+.logo-derecha {
+  left: auto;
+  right: 20px;
+}
+
+.gestion-container {
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 700px;
+  margin: 80px auto 0;
+}
+
+.paso-gestion {
+  min-height: 300px;
+}
+
+.gestion-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.gestion-header h1 {
+  color: #F2F2F2;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.gestion-header p {
+  color: #F2F2F2;
+  font-size: 16px;
+}
+
+.gestion-body {
+  color: #F2F2F2;
+}
+
+.gestion-body input {
+  width: 100%;
+  padding: 15px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  border: 2px solid #747474;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  box-sizing: border-box;
+}
+
+.btn-gestion-primary {
+  width: 100%;
+  padding: 15px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #275317;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 10px;
+}
+
+.btn-gestion-primary:hover {
+  background: #357220;
+}
+
+.btn-gestion-secondary {
+  width: 100%;
+  padding: 15px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #747474;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 10px;
+}
+
+.btn-gestion-secondary:hover {
+  background: #404040;
+}
+
+.btn-gestion-danger {
+  width: 100%;
+  padding: 15px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #c41e3a;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 10px;
+}
+
+.btn-gestion-danger:hover {
+  background: #a01629;
+}
+
+.info-estudiante {
+  background: rgba(78, 167, 46, 0.3);
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.info-estudiante p {
+  font-size: 18px;
+  margin: 10px 0;
+}
+
+.botones-confirmacion {
+  display: flex;
+  gap: 15px;
+}
+
+.botones-confirmacion button {
+  flex: 1;
+}
+
+.estado-consentimiento {
+  padding: 25px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.estado-consentimiento.activo {
+  background: rgba(78, 167, 46, 0.3);
+  border: 2px solid #4EA72E;
+}
+
+.estado-consentimiento.inactivo {
+  background: rgba(196, 30, 58, 0.2);
+  border: 2px solid #c41e3a;
+}
+
+.estado-consentimiento h2 {
+  margin: 0 0 15px 0;
+  font-size: 24px;
+}
+
+.info-datos {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.info-datos p {
+  font-size: 16px;
+  margin: 10px 0;
+}
+
+.info-registro {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 10px;
+  margin: 20px 0;
+}
+
+.info-registro p {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.enlace-registro {
+  color: #4EA72E;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.acciones-consentimiento {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Modal de Aviso */
+.aviso-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 3000;
+  align-items: center;
+  justify-content: center;
+}
+
+.aviso-modal.active {
+  display: flex;
+}
+
+.aviso-modal-content {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.btn-cerrar-modal-aviso {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  color: #3B7D23;
+  cursor: pointer;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  border-radius: 50%;
+}
+
+.btn-cerrar-modal-aviso:hover {
+  background: rgba(59, 125, 35, 0.1);
+  transform: rotate(90deg);
+}
+
+.aviso-header h2 {
+  color: #3B7D23;
+  text-align: center;
+  margin: 0 0 20px 0;
+}
+
+.aviso-body {
+  color: #333;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.aviso-body ul {
+  padding-left: 25px;
+}
+
+.aviso-body li {
+  margin: 8px 0;
+}
+
+/* Modal de Confirmación */
+.confirmacion-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 3000;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirmacion-modal.active {
+  display: flex;
+}
+
+.confirmacion-modal-content {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+}
+
+.confirmacion-header h2 {
+  color: #c41e3a;
+  text-align: center;
+  margin: 0 0 20px 0;
+}
+
+.confirmacion-body {
+  color: #333;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.confirmacion-body ul {
+  padding-left: 25px;
+  margin: 15px 0;
+}
+
+.confirmacion-body li {
+  margin: 8px 0;
+}
+
+.advertencia {
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+  color: #856404;
+  margin: 20px 0;
+}
+
+.confirmacion-botones {
+  display: flex;
+  gap: 15px;
+}
+
+.confirmacion-botones button {
+  flex: 1;
 }
