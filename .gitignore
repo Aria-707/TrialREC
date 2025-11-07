@@ -12,3 +12,4 @@ set_admin.py
 
 clave_encriptacion.key
 salt_encriptacion.key
+logs_auditoria.json
