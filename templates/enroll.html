@@ -422,6 +422,7 @@
     const COMMUNITY_MESSAGE = 'No se encuentra esta cédula dentro de la comunidad educativa de la Universidad de Cundinamarca Seccional Ubaté. Si esto es un error, ponte en contacto con un administrador, y pídele al profesor que registre tu asistencia manualmente por esta ocasión.';
     const STUDENT_MESSAGE = 'No se encuentra un estudiante asociado a esta cédula. Si esto es un error, ponte en contacto con un administrador, y pídele al profesor que registre tu asistencia manualmente por esta ocasión.';
     const CONSENT_MESSAGE = 'Entendido, al no dar tu consentimiento, no tomaré tus datos. Recuerda hablar con tu profesor para que tu asistencia se tome de forma manual.';
+    const ADMIN_MESSAGE = 'Un administrador tiene que registrarte antes de este alta. Pídele al profesor que tome tu asistencia de forma manual por esta ocasión.';
 
     let national_id = '';
     let notice_timer = null;
@@ -577,7 +578,9 @@
         confirm_overlay.classList.add('active');
         confirm_yes.onclick = () => {
           confirm_overlay.classList.remove('active');
-          if (data.biometrico === true) {
+          if (!data.legal_row) {
+            show_notice(ADMIN_MESSAGE);
+          } else if (data.biometrico === true) {
             terms_accepted = true;
             start_capture();
           } else {

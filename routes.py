@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import time
+from datetime import datetime
 
 import cv2
 import numpy as np
@@ -13,7 +14,7 @@ from flask_cors import CORS
 from attendance import lookup_student, record_attendance
 from audit import log_event
 from classroom import current_classroom, load_saved_classroom, set_classroom
-from consent import biometrico_is_true, record_acceptance, sweep_before_class_frame
+from consent import biometrico_is_true, has_legal_row, record_acceptance, sweep_before_class_frame
 from constants import CONFIDENCE_THRESHOLD, DEMO_MODE, FACE_SIZE
 from encryption import encrypt_file
 from face import (
@@ -32,7 +33,6 @@ from face import (
 from firebase_config import db
 from schedule import (
     active_course_for_classroom,
-    arrival_category,
     available_classrooms,
     next_course,
 )
@@ -42,7 +42,19 @@ CORS(app)
 
 recognized_students = set()
 recognition_started_at = {}
+recognition_day = None
 previous_classroom = None
+
+
+def forget_recognitions_from_other_days():
+    """Drop in-memory hits from a previous date. Today's document stays the source of truth."""
+    global recognition_day
+    today = datetime.now().strftime("%Y-%m-%d")
+    if recognition_day == today:
+        return
+    recognized_students.clear()
+    recognition_started_at.clear()
+    recognition_day = today
 
 
 @app.route("/")
@@ -67,6 +79,7 @@ def recognize():
     global recognized_students, recognition_started_at, previous_classroom
 
     try:
+        forget_recognitions_from_other_days()
         classroom_name = current_classroom()
         if not classroom_name:
             return jsonify({
@@ -128,7 +141,7 @@ def recognize():
                     recorded = False
                     category = None
                     if biometrico_is_true(national_id):
-                        recorded = record_attendance(national_id, course_id, start_time)
+                        recorded, category = record_attendance(national_id, course_id, start_time)
                         if recorded:
                             recognized_students.add(student_name)
                             log_event(
@@ -137,7 +150,6 @@ def recognize():
                                 user=student_name,
                                 extra={"curso": course_id},
                             )
-                            category = arrival_category(start_time)
                         else:
                             recognized_students.add(student_name)
                     if recorded:
@@ -256,6 +268,11 @@ def api_begin_capture():
     person = lookup_student(national_id)
     if person.get("status") != "student":
         return jsonify({"ok": False, "error": "Esta cédula no sigue el alta"}), 400
+    if not person.get("legal_row"):
+        return jsonify({
+            "ok": False,
+            "error": "Un administrador tiene que registrarte antes de este alta.",
+        }), 400
 
     begin_capture(national_id)
     return jsonify({"ok": True}), 200
@@ -319,20 +336,21 @@ def save_photo():
         try:
             faces, method = detect_face(gray)
         except Exception as error:
-            print(f"⚠️ Error detectando el rostro al guardar la foto (se guarda el fotograma igual): {error}")
+            print(f"⚠️ Error detectando el rostro al guardar la foto: {error}")
+            return jsonify({"ok": False, "error": "No se detectó un rostro"}), 200
+
+        if faces is None or len(faces) == 0:
+            print("Sin rostro en el fotograma de alta. No se guarda.")
+            return jsonify({"ok": False, "error": "No se detectó un rostro"}), 200
 
         timestamp = int(time.time() * 1000000)
         file_path = os.path.join(person_path, f"face_{timestamp}.jpg")
 
         try:
-            if faces is not None and len(faces) > 0:
-                x, y, width, height = faces[0]
-                face_crop = gray[y:y + height, x:x + width]
-                final_face = cv2.resize(face_crop, (FACE_SIZE, FACE_SIZE), interpolation=cv2.INTER_CUBIC)
-                capture_type = "crop"
-            else:
-                final_face = cv2.resize(gray, (FACE_SIZE, FACE_SIZE), interpolation=cv2.INTER_CUBIC)
-                capture_type = "full"
+            x, y, width, height = faces[0]
+            face_crop = gray[y:y + height, x:x + width]
+            final_face = cv2.resize(face_crop, (FACE_SIZE, FACE_SIZE), interpolation=cv2.INTER_CUBIC)
+            capture_type = "crop"
 
             success = cv2.imwrite(file_path, final_face)
             if not success or not os.path.exists(file_path):
@@ -393,6 +411,13 @@ def train():
             return jsonify({"success": False, "error": "Esta cédula no sigue el alta"}), 400
 
         already_consented = biometrico_is_true(national_id)
+        if not already_consented and not has_legal_row(national_id):
+            discard_capture(national_id)
+            return jsonify({
+                "success": False,
+                "error": "Un administrador tiene que registrarte antes de este alta.",
+            }), 400
+
         person_path = os.path.join(photo_dir, national_id)
         previous_path = person_path + ".previous"
 
@@ -425,8 +450,11 @@ def train():
         if os.path.isdir(previous_path):
             shutil.rmtree(previous_path)
 
-        if not already_consented:
-            record_acceptance(national_id)
+        if not already_consented and not record_acceptance(national_id):
+            return jsonify({
+                "success": False,
+                "error": "Un administrador tiene que registrarte antes de este alta.",
+            }), 400
 
         print("✅ ENTRENAMIENTO COMPLETADO")
         print(f"   • Imágenes preservadas: {len(files)}")

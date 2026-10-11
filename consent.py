@@ -83,28 +83,28 @@ def biometrico_is_explicit_false(national_id):
     return current.get("biometrico") is False
 
 
+def has_legal_row(national_id):
+    """True when this cédula already has a row to copy."""
+    return latest_acceptance(national_id) is not None
+
+
 def record_acceptance(national_id):
-    """Append one acceptance. The previous row stays as it was."""
-    collection = (
+    """Append one acceptance by copying the current row. Never invents the first one."""
+    current = latest_acceptance(national_id)
+    if not current:
+        return False
+
+    payload = dict(current)
+    payload["evento"] = "aceptacion"
+    payload["biometrico"] = True
+    payload["fecha"] = datetime.now().astimezone()
+    (
         db.collection("person")
         .document(national_id)
         .collection(LEGAL_COLLECTION)
+        .add(payload)
     )
-    current = latest_acceptance(national_id)
-    moment = datetime.now().astimezone()
-    if current:
-        payload = dict(current)
-        payload["evento"] = "aceptación"
-        payload["biometrico"] = True
-        payload["fecha"] = moment
-    else:
-        payload = {
-            "evento": "aceptación",
-            "biometrico": True,
-            "datosPersonales": True,
-            "fecha": moment,
-        }
-    collection.add(payload)
+    return True
 
 
 def delete_revoked_folders(photo_dir):

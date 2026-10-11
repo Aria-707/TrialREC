@@ -2,10 +2,10 @@
 from datetime import datetime
 
 from classroom import current_classroom
-from consent import biometrico_is_true
-from constants import DEMO_COURSE_ID, DEMO_ID_MAX, DEMO_ID_MIN, DEMO_MODE, LATE_AFTER_MINUTES
+from consent import biometrico_is_true, has_legal_row
+from constants import DEMO_COURSE_ID, DEMO_ID_MAX, DEMO_ID_MIN, DEMO_MODE
 from firebase_config import db
-from schedule import active_course_for_classroom
+from schedule import active_course_for_classroom, arrival_from_start
 
 
 def normalize_person_name(name):
@@ -41,11 +41,15 @@ def lookup_student(national_id):
         "status": "student",
         "name": fields.get("namePerson") or "",
         "biometrico": biometrico_is_true(str(national_id)),
+        "legal_row": has_legal_row(str(national_id)),
     }
 
 
 def record_attendance(national_id, course_id=None, class_start=None):
-    """Change Ausente to Presente when this cédula is already on the class list."""
+    """Change Ausente to Presente when this cédula is already on the class list.
+
+    Returns (recorded, category). The category and the late flag share one clock reading.
+    """
     try:
         national_id = str(national_id)
         classroom_name = current_classroom()
@@ -55,18 +59,20 @@ def record_attendance(national_id, course_id=None, class_start=None):
 
         if not course_id:
             print("[!] NO SE REGISTRA ASISTENCIA: No hay curso activo")
-            return False
+            return False, None
 
         if not national_id.isdigit():
             print("[!] NO SE REGISTRA ASISTENCIA: el rostro no corresponde a una cédula")
-            return False
+            return False, None
 
         if not biometrico_is_true(national_id):
             print("[!] NO SE REGISTRA ASISTENCIA: el dato biométrico no está autorizado")
-            return False
+            return False, None
 
-        today = datetime.now().strftime("%Y-%m-%d")
-        current_time = datetime.now().strftime("%H:%M")
+        now = datetime.now()
+        today = now.strftime("%Y-%m-%d")
+        current_time = now.strftime("%H:%M")
+        category, is_late = arrival_from_start(class_start, now)
 
         print("\n=== ACTUALIZANDO ASISTENCIA ===")
         print(f"Fecha: {today}")
@@ -76,23 +82,14 @@ def record_attendance(national_id, course_id=None, class_start=None):
         student_doc = db.collection("person").document(national_id).get()
         if not student_doc.exists or (student_doc.to_dict() or {}).get("type") != "Estudiante":
             print("[✖] ERROR: No se encontró un estudiante con esa cédula")
-            return False
+            return False, None
 
         student_id = student_doc.id
 
-        is_late = False
-        if class_start:
-            try:
-                start_clock = datetime.strptime(class_start, "%H:%M")
-                now_clock = datetime.strptime(current_time, "%H:%M")
-                difference = (now_clock - start_clock).total_seconds() / 60
-                if difference > LATE_AFTER_MINUTES:
-                    is_late = True
-                    print(f"⚠️ TARDE: {int(difference)} minutos")
-                else:
-                    print("✓ A TIEMPO")
-            except Exception:
-                pass
+        if is_late:
+            print("⚠️ TARDE")
+        else:
+            print("✓ A TIEMPO")
 
         assistance_ref = db.collection("courses").document(course_id).collection("assistances").document(today)
         assistance_doc = assistance_ref.get()
@@ -101,12 +98,12 @@ def record_attendance(national_id, course_id=None, class_start=None):
             course_doc = db.collection("courses").document(course_id).get()
             if not course_doc.exists:
                 print(f"[✖] ERROR: El curso {course_id} no existe")
-                return False
+                return False, None
 
             student_ids = course_doc.to_dict().get("estudianteID", [])
             if student_id not in student_ids and not DEMO_MODE:
                 print("[!] La cédula no está en la clase activa. No se escribe asistencia.")
-                return False
+                return False, None
 
             print("[!] Documento no existe - Creando automáticamente...")
             initial_data = {}
@@ -126,11 +123,11 @@ def record_attendance(national_id, course_id=None, class_start=None):
         if student_id not in existing:
             print("[!] La cédula no está en la clase activa. No se escribe asistencia.")
             if not DEMO_MODE:
-                return False
+                return False, None
 
             person_courses = (student_doc.to_dict() or {}).get("courses", [])
             if DEMO_COURSE_ID not in person_courses:
-                return False
+                return False, None
 
             existing[student_id] = {
                 "estadoAsistencia": "Ausente",
@@ -154,16 +151,16 @@ def record_attendance(national_id, course_id=None, class_start=None):
             print(f"    Hora: {current_time}")
             print(f"    Tarde: {'Sí' if is_late else 'No'}")
             print("=== ACTUALIZACIÓN EXITOSA ===\n")
-            return True
+            return True, category
 
         print(f"[!] Ya registrado como: {current_status}")
-        return True
+        return True, category
 
     except Exception as error:
         print(f"[✖] ERROR registrando la asistencia: {error}")
         import traceback
         traceback.print_exc()
-        return False
+        return False, None
 
 
 def enroll_demo_student(student_name):

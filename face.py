@@ -122,7 +122,10 @@ def train_incrementally(new_records):
             print("No hay imágenes nuevas para entrenar.")
             return False
 
-        face_recognizer.update(face_images, np.array(labels))
+        if face_recognizer.empty():
+            face_recognizer.train(face_images, np.array(labels))
+        else:
+            face_recognizer.update(face_images, np.array(labels))
         face_recognizer.write(model_path)
         _apply_labels(label_dict)
         save_label_map()

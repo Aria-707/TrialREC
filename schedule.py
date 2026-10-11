@@ -8,71 +8,8 @@ from constants import (
     MINUTES_AFTER_START,
     MINUTES_BEFORE_START,
     ON_TIME_MARGIN_MINUTES,
-    UNUSED_MINUTES_BEFORE_END,
 )
 from firebase_config import db
-
-
-def active_course_until_before_end(teacher_id=None):
-    """Unused. Closes 15 minutes before class end. The kiosk uses active_course_for_classroom."""
-    try:
-        now = datetime.now()
-        english_day = now.strftime("%A")
-        spanish_day = ENGLISH_TO_SPANISH_WEEKDAYS.get(english_day, english_day)
-        current_time = now.strftime("%H:%M")
-
-        print("\n=== BUSCANDO CURSO ACTIVO ===")
-        print(f"Día (español): {spanish_day}")
-        print(f"Día (inglés): {english_day}")
-        print(f"Hora actual: {current_time}")
-
-        courses_ref = db.collection("courses")
-        if teacher_id:
-            courses_ref = courses_ref.where("profesorID", "==", teacher_id)
-
-        for course_doc in courses_ref.get():
-            course_id = course_doc.id
-            course_data = course_doc.to_dict()
-            schedule = course_data.get("schedule", [])
-
-            print(f"\n  Verificando curso: {course_id}")
-            print(f"  Nombre: {course_data.get('nameCourse')}")
-
-            for slot in schedule:
-                slot_day = slot.get("day", "")
-                start_text = slot.get("iniTime", "00:00")
-                end_text = slot.get("endTime", "23:59")
-
-                print(f"    Schedule: {slot_day} {start_text}-{end_text}")
-
-                if slot_day == spanish_day or slot_day == english_day:
-                    print("      ✓ Día coincide")
-                    start_clock = datetime.strptime(start_text, "%H:%M")
-                    end_clock = datetime.strptime(end_text, "%H:%M")
-                    now_clock = datetime.strptime(current_time, "%H:%M")
-                    window_open = start_clock - timedelta(minutes=MINUTES_BEFORE_START)
-                    window_close = end_clock - timedelta(minutes=UNUSED_MINUTES_BEFORE_END)
-
-                    print(f"      Ventana de registro: {window_open.strftime('%H:%M')} - {window_close.strftime('%H:%M')}")
-
-                    if window_open <= now_clock <= window_close:
-                        print("      ✓ Hora dentro del rango de registro")
-                        print(f"  [✔] ¡CURSO ACTIVO ENCONTRADO: {course_id}!")
-                        return (course_id, start_text)
-                    if now_clock < window_open:
-                        print(f"      ✗ Demasiado temprano (antes de {window_open.strftime('%H:%M')})")
-                    else:
-                        print(f"      ✗ Demasiado tarde (después de {window_close.strftime('%H:%M')})")
-
-        print(f"\n[!] No se encontró curso activo para {spanish_day} a las {current_time}")
-        print("    NO se registrará asistencia (no hay cursos por defecto)")
-        return (None, None)
-
-    except Exception as error:
-        print(f"[✖] ERROR obteniendo el curso activo (ventana hasta antes del final): {error}")
-        import traceback
-        traceback.print_exc()
-        return (None, None)
 
 
 def available_classrooms():
@@ -239,10 +176,13 @@ def schedule_matches_classroom(schedule, spanish_day, english_day, current_time,
     return None
 
 
-def arrival_category(start_text):
-    """Display category. `late` in Firestore is a separate boolean after 15 minutes."""
+def arrival_from_start(start_text, now=None):
+    """Screen category and the Firestore late flag, from one clock reading."""
     try:
-        now = datetime.now()
+        if not start_text:
+            return "arrived", False
+
+        now = now or datetime.now()
         current_time = now.strftime("%H:%M")
         start_clock = datetime.strptime(start_text, "%H:%M")
         now_clock = datetime.strptime(current_time, "%H:%M")
@@ -250,17 +190,20 @@ def arrival_category(start_text):
 
         print(f"📊 Diferencia de tiempo: {difference:.1f} minutos")
 
+        is_late = difference > LATE_AFTER_MINUTES
         if difference < -ON_TIME_MARGIN_MINUTES:
-            return "early"
-        if -ON_TIME_MARGIN_MINUTES <= difference <= ON_TIME_MARGIN_MINUTES:
-            return "on_time"
-        if ON_TIME_MARGIN_MINUTES < difference <= LATE_AFTER_MINUTES:
-            return "arrived"
-        return "late"
+            category = "early"
+        elif difference <= ON_TIME_MARGIN_MINUTES:
+            category = "on_time"
+        elif difference <= LATE_AFTER_MINUTES:
+            category = "arrived"
+        else:
+            category = "late"
+        return category, is_late
 
     except Exception as error:
         print(f"Error calculando la categoría de llegada para el inicio {start_text}: {error}")
-        return "arrived"
+        return "arrived", False
 
 
 def next_course(required_classroom):

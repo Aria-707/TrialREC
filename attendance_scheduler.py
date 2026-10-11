@@ -1,29 +1,28 @@
 """Create the day's attendance documents shortly before class starts."""
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from constants import ENGLISH_TO_SPANISH_WEEKDAYS, SCHEDULER_CHECK_MINUTE, SCHEDULER_LOOKAHEAD_MINUTES
+from constants import ENGLISH_TO_SPANISH_WEEKDAYS, SCHEDULER_LOOKAHEAD_MINUTES
 from firebase_config import db
 
 initialized_documents = set()
 
 
 def courses_about_to_start(configured_classroom):
-    """Courses that start about 6 minutes after the :54 check."""
+    """Courses in this classroom whose start is within the next 6 minutes."""
     try:
         now = datetime.now()
         english_day = now.strftime("%A")
         spanish_day = ENGLISH_TO_SPANISH_WEEKDAYS.get(english_day, english_day)
         current_time = now.strftime("%H:%M")
         today = now.strftime("%Y-%m-%d")
-        target_time = (now + timedelta(minutes=SCHEDULER_LOOKAHEAD_MINUTES)).strftime("%H:%M")
 
         to_create = []
 
         print(f"   📅 Día: {spanish_day} ({english_day})")
         print(f"   🕐 Hora actual: {current_time}")
-        print(f"   🎯 Buscando clases que inicien a las: {target_time}")
+        print(f"   🎯 Buscando clases que inicien en los próximos {SCHEDULER_LOOKAHEAD_MINUTES} minutos")
         print(f"   🏫 Salón configurado: {configured_classroom}")
 
         if not configured_classroom:
@@ -39,8 +38,8 @@ def courses_about_to_start(configured_classroom):
                 if groups:
                     for group_doc in groups:
                         for slot in group_doc.to_dict().get("schedule", []):
-                            start_text = schedule_matches_exact_time(
-                                slot, spanish_day, english_day, target_time, configured_classroom
+                            start_text = schedule_starts_within(
+                                slot, spanish_day, english_day, now, configured_classroom
                             )
                             if start_text:
                                 to_create.append((course_id, today, start_text))
@@ -51,8 +50,8 @@ def courses_about_to_start(configured_classroom):
                 pass
 
             for slot in course_data.get("schedule", []):
-                start_text = schedule_matches_exact_time(
-                    slot, spanish_day, english_day, target_time, configured_classroom
+                start_text = schedule_starts_within(
+                    slot, spanish_day, english_day, now, configured_classroom
                 )
                 if start_text:
                     to_create.append((course_id, today, start_text))
@@ -60,7 +59,7 @@ def courses_about_to_start(configured_classroom):
                     print(f"   ✅ Encontrado: {course_name} ({course_id}) - Inicia a las {start_text}")
 
         if not to_create:
-            print(f"   ℹ️ No hay cursos iniciando a las {target_time} en {configured_classroom}")
+            print(f"   ℹ️ No hay cursos iniciando en los próximos {SCHEDULER_LOOKAHEAD_MINUTES} minutos en {configured_classroom}")
 
         return to_create
 
@@ -69,8 +68,8 @@ def courses_about_to_start(configured_classroom):
         return []
 
 
-def schedule_matches_exact_time(slot, spanish_day, english_day, target_time, required_classroom):
-    """Return the start time only when day, classroom, and clock match exactly."""
+def schedule_starts_within(slot, spanish_day, english_day, now, required_classroom):
+    """Return the start time when the class in this classroom begins within the lookahead."""
     try:
         slot_day = slot.get("day", "")
         start_text = slot.get("iniTime", "00:00")
@@ -80,7 +79,13 @@ def schedule_matches_exact_time(slot, spanish_day, english_day, target_time, req
             return None
         if slot_day != spanish_day and slot_day != english_day:
             return None
-        if start_text == target_time:
+
+        start_clock = datetime.strptime(start_text, "%H:%M").replace(
+            year=now.year, month=now.month, day=now.day
+        )
+        now_clock = now.replace(second=0, microsecond=0)
+        minutes_until_start = (start_clock - now_clock).total_seconds() / 60
+        if 0 <= minutes_until_start <= SCHEDULER_LOOKAHEAD_MINUTES:
             return start_text
         return None
     except Exception:
@@ -156,43 +161,36 @@ def clear_old_initialized_documents():
 
 
 def scheduled_task(classroom_callback):
-    """Sleep 60 seconds and act only when the clock minute is 54."""
+    """Sleep 60 seconds, then create today's list for classes starting within 6 minutes."""
     print("\n" + "="*70)
     print("🚀 SCHEDULER DE ASISTENCIA INICIADO")
     print("="*70)
-    print("   ⏰ Verificación: Solo cuando los minutos terminen en :54")
-    print("   📋 Inicialización: Automática en horas en punto (:00)")
+    print("   ⏰ Verificación: cada 60 segundos")
+    print(f"   📋 Inicialización: clases que empiezan en los próximos {SCHEDULER_LOOKAHEAD_MINUTES} minutos")
     print("   🧹 Limpieza: Diariamente a la medianoche")
-    print("   💡 Optimizado: Procesamiento mínimo de CPU")
     print("="*70 + "\n")
 
     last_cleanup = datetime.now().date()
-    last_processed_minute = -1
 
     while True:
         try:
             now = datetime.now()
-            current_minute = now.minute
             today = now.date()
             if today > last_cleanup:
                 clear_old_initialized_documents()
                 last_cleanup = today
 
-            if current_minute == SCHEDULER_CHECK_MINUTE and last_processed_minute != SCHEDULER_CHECK_MINUTE:
-                print(f"\n🔔 [{now.strftime('%H:%M:%S')}] ¡Minuto :54 detectado! Iniciando verificación...")
-                classroom_name = classroom_callback()
-                if classroom_name:
-                    courses = courses_about_to_start(classroom_name)
-                    for course_id, day, _start_text in courses:
-                        create_attendance_document(course_id, day)
-                    if not courses:
-                        print("   ℹ️ No hay cursos a inicializar en este momento")
-                else:
-                    print("   ⚠️ No hay salón configurado - saltando verificación")
-                last_processed_minute = SCHEDULER_CHECK_MINUTE
-                print("✅ Verificación completada. Próxima verificación en ~60 minutos.\n")
-            elif current_minute != SCHEDULER_CHECK_MINUTE:
-                last_processed_minute = -1
+            print(f"\n🔔 [{now.strftime('%H:%M:%S')}] Verificando clases por iniciar...")
+            classroom_name = classroom_callback()
+            if classroom_name:
+                courses = courses_about_to_start(classroom_name)
+                for course_id, day, _start_text in courses:
+                    create_attendance_document(course_id, day)
+                if not courses:
+                    print("   ℹ️ No hay cursos a inicializar en este momento")
+            else:
+                print("   ⚠️ No hay salón configurado - saltando verificación")
+            print("✅ Verificación completada. Próxima verificación en ~60 segundos.\n")
 
         except Exception as error:
             print(f"\n❌ ERROR en la tarea programada del scheduler de asistencia: {error}")
