@@ -110,17 +110,35 @@
     </div>
   </div>
 
+  <div id="confirma-overlay" class="terminos-overlay">
+    <div class="terminos-popup">
+      <h2>Confirma tu nombre</h2>
+      <p id="confirma-nombre" class="aviso-texto"></p>
+      <div class="terminos-botones">
+        <button type="button" class="btn-terminos-cancelar" id="btn-nombre-no">No</button>
+        <button type="button" class="btn-terminos-aceptar" id="btn-nombre-si">Sí</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="aviso-overlay" class="terminos-overlay">
+    <div class="terminos-popup aviso-popup">
+      <button type="button" id="aviso-cerrar" class="aviso-cerrar" aria-label="Cerrar">X</button>
+      <p id="aviso-texto" class="aviso-texto"></p>
+    </div>
+  </div>
+
   <div class="contenedor-principal">
     <div class="texto-bienvenida-reg">Registrar Nuevo Estudiante</div>
 
     <div class="mensaje-instrucciones">
       <h3>Instrucciones:</h3>
       <ol style="text-align: left; margin: 10px 0;">
-        <li>Ingresa tu nombre completo en mayúsculas.</li>
-        <li>Haz clic en "Iniciar Captura".</li>
-        <li>Mantén tu rostro frente a la cámara.</li>
-        <li>Mueve ligeramente la cabeza (arriba, abajo, izquierda, derecha) lento.</li>
-        <li>El sistema capturará 100 fotos automáticamente y quedarás registrado.</li>
+        <li>Ingresa tu cédula.</li>
+        <li>Confirma que el nombre es el tuyo.</li>
+        <li>Si aún no has autorizado el dato biométrico, acepta el tratamiento de datos.</li>
+        <li>Mantén tu rostro frente a la cámara y muévelo un poco, despacio.</li>
+        <li>El sistema capturará 100 fotos y quedarás registrado.</li>
       </ol>
     </div>
 
@@ -133,8 +151,9 @@
     </div>
 
     <div class="form-container">
-      <input type="text" id="estudiante" placeholder="Nombre completo del estudiante" required>
-      <button id="btn-capturar">Iniciar Captura</button>
+      <input type="text" id="estudiante" inputmode="numeric" placeholder="Cédula" autocomplete="off" required>
+      <input type="text" id="nombre-prueba" placeholder="Nombre completo" autocomplete="off" style="display:none">
+      <button id="btn-capturar" type="button">Continuar</button>
     </div>
 
     <div class="progreso-container" id="progreso-container">
@@ -382,32 +401,69 @@
     // TÉRMINOS Y CONDICIONES
     // ============================================
 
+    const demo_mode = {{ 'true' if demo_mode else 'false' }};
+    const demo_name_input = document.getElementById('nombre-prueba');
+    if (demo_mode) {
+      demo_name_input.style.display = 'block';
+    }
+
     const terms_overlay = document.getElementById('terminos-overlay');
     const accept_terms_checkbox = document.getElementById('aceptar-terminos');
     const accept_terms_button = document.getElementById('btn-terminos-aceptar');
     const cancel_terms_button = document.getElementById('btn-terminos-cancelar');
+    const confirm_overlay = document.getElementById('confirma-overlay');
+    const confirm_name = document.getElementById('confirma-nombre');
+    const confirm_yes = document.getElementById('btn-nombre-si');
+    const confirm_no = document.getElementById('btn-nombre-no');
+    const notice_overlay = document.getElementById('aviso-overlay');
+    const notice_text = document.getElementById('aviso-texto');
+    const notice_close = document.getElementById('aviso-cerrar');
 
-    // Mostrar popup INMEDIATAMENTE (sin esperar al evento load)
+    const COMMUNITY_MESSAGE = 'No se encuentra esta cédula dentro de la comunidad educativa de la Universidad de Cundinamarca Seccional Ubaté. Si esto es un error, ponte en contacto con un administrador, y pídele al profesor que registre tu asistencia manualmente por esta ocasión.';
+    const STUDENT_MESSAGE = 'No se encuentra un estudiante asociado a esta cédula. Si esto es un error, ponte en contacto con un administrador, y pídele al profesor que registre tu asistencia manualmente por esta ocasión.';
+    const CONSENT_MESSAGE = 'Entendido, al no dar tu consentimiento, no tomaré tus datos. Recuerda hablar con tu profesor para que tu asistencia se tome de forma manual.';
+
+    let national_id = '';
+    let notice_timer = null;
+
     terms_accepted = false;
     accept_terms_checkbox.checked = false;
     accept_terms_button.disabled = true;
-    terms_overlay.classList.add('active');
 
-    // Habilitar botón solo si se acepta el checkbox
     accept_terms_checkbox.addEventListener('change', (e) => {
       accept_terms_button.disabled = !e.target.checked;
     });
 
-    // Aceptar términos
+    function show_notice(text) {
+      notice_text.textContent = text;
+      notice_overlay.classList.add('active');
+      clearTimeout(notice_timer);
+      notice_timer = setTimeout(close_notice, 20000);
+    }
+
+    function close_notice() {
+      clearTimeout(notice_timer);
+      window.location.href = '/';
+    }
+
+    notice_close.addEventListener('click', close_notice);
+
+    function show_terms() {
+      terms_accepted = false;
+      accept_terms_checkbox.checked = false;
+      accept_terms_button.disabled = true;
+      terms_overlay.classList.add('active');
+    }
+
     accept_terms_button.addEventListener('click', () => {
       terms_accepted = true;
       terms_overlay.classList.remove('active');
-      console.log('✅ Términos y condiciones aceptados');
+      start_capture();
     });
 
-    // Cancelar - redirigir al inicio
     cancel_terms_button.addEventListener('click', () => {
-      window.location.href = '/';
+      terms_overlay.classList.remove('active');
+      show_notice(CONSENT_MESSAGE);
     });
 
     // INICIAR CÁMARA
@@ -487,30 +543,81 @@
       ctx.fillText(label_text, mirroredX + 10, y - 12);
     }
 
+    async function continue_enrollment() {
+      national_id = name_input.value.trim();
+      if (!/^\d+$/.test(national_id)) {
+        result_label.textContent = 'Ingresa la cédula solo con números.';
+        result_label.style.color = '#771C07';
+        return;
+      }
+
+      capture_button.disabled = true;
+      try {
+        const response = await fetch('/api/lookup_student', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ national_id: national_id })
+        });
+        const data = await response.json();
+
+        if (data.status === 'demo_unavailable') {
+          show_notice(data.message);
+          return;
+        }
+        if (data.status === 'missing') {
+          show_notice(COMMUNITY_MESSAGE);
+          return;
+        }
+        if (data.status !== 'student') {
+          show_notice(STUDENT_MESSAGE);
+          return;
+        }
+
+        confirm_name.textContent = data.name || '';
+        confirm_overlay.classList.add('active');
+        confirm_yes.onclick = () => {
+          confirm_overlay.classList.remove('active');
+          if (data.biometrico === true) {
+            terms_accepted = true;
+            start_capture();
+          } else {
+            show_terms();
+          }
+        };
+        confirm_no.onclick = () => {
+          confirm_overlay.classList.remove('active');
+          show_notice(STUDENT_MESSAGE);
+        };
+      } catch (error) {
+        console.error('Error consultando la cédula:', error);
+        result_label.textContent = 'No se pudo consultar la cédula.';
+        result_label.style.color = '#771C07';
+        capture_button.disabled = false;
+      }
+    }
+
     // PROCESO DE CAPTURA
     async function start_capture() {
-      // Verificar que se hayan aceptado los términos
-      if (!terms_accepted) {
-        alert('⚠️ Debes aceptar los términos y condiciones para registrarte');
-        terms_overlay.classList.add('active');
-        return;
-      }
-      const person_name = name_input.value.trim();
-
-      if (!person_name) {
-        alert('❌ Por favor ingresa tu nombre');
-        return;
-      }
-
-      if (!confirm(`¿Iniciar captura para "${person_name}"?\n\nAsegúrate de estar frente a la cámara.`)) {
-        return;
-      }
-
       capturing = true;
       capture_button.disabled = true;
       name_input.disabled = true;
       progress_container.style.display = 'block';
       result_label.textContent = '';
+
+      const prepared = await fetch('/api/begin_capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ national_id: national_id })
+      });
+      const prepared_data = await prepared.json();
+      if (!prepared_data.ok) {
+        progress_text.textContent = prepared_data.error || 'No se pudo iniciar la captura';
+        progress_text.style.color = '#771C07';
+        capture_button.disabled = false;
+        name_input.disabled = false;
+        capturing = false;
+        return;
+      }
 
       const photo_count = 100;
       const capture_interval_ms = 100;
@@ -533,7 +640,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              student: person_name,
+              national_id: national_id,
               photo: photo
             })
           });
@@ -567,7 +674,7 @@
         const res = await fetch('/train', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ student: person_name })
+          body: JSON.stringify({ national_id: national_id })
         });
 
         const data = await res.json();
@@ -595,11 +702,11 @@
       }
     }
 
-    capture_button.addEventListener('click', start_capture);
+    capture_button.addEventListener('click', continue_enrollment);
 
     name_input.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
-        start_capture();
+        continue_enrollment();
       }
     });
 

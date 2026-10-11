@@ -6,7 +6,7 @@ from flask import Flask, Response, redirect, render_template, request, send_file
 from flask_cors import CORS
 
 from classroom import load_saved_classroom
-from constants import RECOGNITION_HOST, RECOGNITION_PORT
+from constants import DEMO_MODE, RECOGNITION_HOST, RECOGNITION_PORT
 
 app = Flask(__name__)
 CORS(app)
@@ -24,6 +24,8 @@ POST_PATHS = (
     "/detect_face",
     "/save_photo",
     "/train",
+    "/api/lookup_student",
+    "/api/begin_capture",
     "/api/set_classroom",
     "/api/clear_recognitions",
 )
@@ -42,7 +44,7 @@ def index():
 
 @app.route("/enroll")
 def enroll():
-    return render_template("enroll.html")
+    return render_template("enroll.html", demo_mode=DEMO_MODE)
 
 
 @app.route("/setup")

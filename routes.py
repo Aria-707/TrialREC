@@ -2,6 +2,7 @@
 import base64
 import os
 import re
+import shutil
 import time
 
 import cv2
@@ -9,18 +10,23 @@ import numpy as np
 from flask import Flask, jsonify, redirect, render_template, request, send_file
 from flask_cors import CORS
 
-from attendance import enroll_demo_student, record_attendance
+from attendance import lookup_student, record_attendance
 from audit import log_event
 from classroom import current_classroom, load_saved_classroom, set_classroom
-from constants import CONFIDENCE_THRESHOLD, FACE_SIZE
+from consent import biometrico_is_true, record_acceptance, sweep_before_class_frame
+from constants import CONFIDENCE_THRESHOLD, DEMO_MODE, FACE_SIZE
 from encryption import encrypt_file
 from face import (
+    begin_capture,
     detect_face,
-    face_recognizer,
+    discard_capture,
     image_paths,
+    label_dict,
     model_path,
     photo_dir,
+    predict_face,
     recognition_seconds,
+    rebuild_model,
     train_incrementally,
 )
 from firebase_config import db
@@ -30,7 +36,6 @@ from schedule import (
     available_classrooms,
     next_course,
 )
-from storage import sanitize_folder_name
 
 app = Flask(__name__)
 CORS(app)
@@ -53,7 +58,7 @@ def index():
 
 @app.route("/enroll")
 def enroll():
-    return render_template("enroll.html")
+    return render_template("enroll.html", demo_mode=DEMO_MODE)
 
 
 @app.route("/recognize", methods=["POST"])
@@ -101,39 +106,60 @@ def recognize():
         x, y, width, height = faces[0]
         face_crop = gray_copy[y:y + height, x:x + width]
         face_crop = cv2.resize(face_crop, (FACE_SIZE, FACE_SIZE), interpolation=cv2.INTER_CUBIC)
-        label, confidence = face_recognizer.predict(face_crop)
+        course_id, start_time = active_course_for_classroom(required_classroom=classroom_name)
+        if course_id:
+            sweep_before_class_frame(course_id)
+        label, confidence = predict_face(face_crop)
         box = [int(x), int(y), int(width), int(height)]
 
-        if confidence < CONFIDENCE_THRESHOLD and label < len(image_paths):
-            folder_name = image_paths[label]
+        folder_name = image_paths[label] if label < len(image_paths) else None
+        if confidence < CONFIDENCE_THRESHOLD and folder_name:
             student_name = folder_name.replace("_", " ")
+            national_id = folder_name if folder_name.isdigit() else None
+            if national_id:
+                person = lookup_student(national_id)
+                if person.get("status") == "student" and person.get("name"):
+                    student_name = person["name"]
 
             if student_name not in recognition_started_at:
                 recognition_started_at[student_name] = time.time()
             elif time.time() - recognition_started_at[student_name] >= recognition_seconds:
-                if student_name not in recognized_students:
-                    recognized_students.add(student_name)
-                    course_id, start_time = active_course_for_classroom(required_classroom=classroom_name)
-
-                    if course_id:
-                        recorded = record_attendance(student_name, course_id, start_time)
-                        log_event(
-                            "RECONOCIMIENTO_FACIAL",
-                            "Asistencia registrada mediante reconocimiento facial",
-                            user=student_name,
-                            extra={"curso": course_id},
-                        )
-                        category = arrival_category(start_time)
+                if student_name not in recognized_students and course_id and national_id:
+                    recorded = False
+                    category = None
+                    if biometrico_is_true(national_id):
+                        recorded = record_attendance(national_id, course_id, start_time)
+                        if recorded:
+                            recognized_students.add(student_name)
+                            log_event(
+                                "RECONOCIMIENTO_FACIAL",
+                                "Asistencia registrada mediante reconocimiento facial",
+                                user=student_name,
+                                extra={"curso": course_id},
+                            )
+                            category = arrival_category(start_time)
+                        else:
+                            recognized_students.add(student_name)
+                    if recorded:
                         return jsonify({
                             "status": "recognized",
                             "student": student_name,
                             "confidence": float(confidence),
                             "box": box,
                             "classroom": classroom_name,
-                            "recorded": recorded,
+                            "recorded": True,
                             "arrival_category": category,
                         })
-                    print(f"[!] Reconocido '{student_name}' pero NO hay curso activo en {classroom_name}")
+                    return jsonify({
+                        "status": "recognized",
+                        "student": student_name,
+                        "confidence": float(confidence),
+                        "box": box,
+                        "classroom": classroom_name,
+                        "recorded": False,
+                    })
+                if not course_id:
+                    print(f"[!] Reconocido en {classroom_name}, sin curso activo")
 
             return jsonify({
                 "status": "recognized",
@@ -187,26 +213,82 @@ def detect_face_route():
         return jsonify({"face_detected": False, "error": str(error)}), 200
 
 
+def _national_id_from_request(data):
+    """The enrollment id is the cédula, digits only."""
+    if not data:
+        return None
+    national_id = str(data.get("national_id", "")).strip()
+    if national_id.isdigit():
+        return national_id
+    return None
+
+
+@app.route("/api/lookup_student", methods=["POST"])
+def api_lookup_student():
+    """Confirm a cédula before any photo is stored."""
+    if DEMO_MODE:
+        return jsonify({
+            "status": "demo_unavailable",
+            "message": "El modo de prueba todavía no está afinado.",
+        }), 200
+
+    data = request.get_json() or {}
+    national_id = _national_id_from_request(data)
+    if not national_id:
+        return jsonify({"status": "missing"}), 200
+    return jsonify(lookup_student(national_id)), 200
+
+
+@app.route("/api/begin_capture", methods=["POST"])
+def api_begin_capture():
+    """Park older photos so this capture replaces them."""
+    if DEMO_MODE:
+        return jsonify({
+            "ok": False,
+            "error": "El modo de prueba todavía no está afinado.",
+        }), 400
+
+    data = request.get_json() or {}
+    national_id = _national_id_from_request(data)
+    if not national_id:
+        return jsonify({"ok": False, "error": "La cédula solo puede tener números"}), 400
+
+    person = lookup_student(national_id)
+    if person.get("status") != "student":
+        return jsonify({"ok": False, "error": "Esta cédula no sigue el alta"}), 400
+
+    begin_capture(national_id)
+    return jsonify({"ok": True}), 200
+
+
 @app.route("/save_photo", methods=["POST"])
 def save_photo():
-    """Save one enrollment photo under the sanitized folder name."""
+    """Save one enrollment photo under data/{cedula}."""
     try:
         data = request.get_json()
         if not data:
             return jsonify({"ok": False, "error": "No se recibió data"}), 400
 
-        original_name = data.get("student", "").strip()
+        if DEMO_MODE:
+            return jsonify({
+                "ok": False,
+                "error": "El modo de prueba todavía no está afinado.",
+            }), 400
+
+        national_id = _national_id_from_request(data)
         photo_b64 = data.get("photo", "")
 
-        if not original_name:
-            return jsonify({"ok": False, "error": "Nombre requerido"}), 400
+        if not national_id:
+            return jsonify({"ok": False, "error": "La cédula solo puede tener números"}), 400
         if not photo_b64:
             return jsonify({"ok": False, "error": "Foto requerida"}), 400
 
-        folder_name = sanitize_folder_name(original_name)
-        print("\n💾 Guardando foto:")
-        print(f"   Nombre original: '{original_name}'")
-        print(f"   Nombre filesystem: '{folder_name}'")
+        person = lookup_student(national_id)
+        if person.get("status") != "student":
+            return jsonify({"ok": False, "error": "Esta cédula no sigue el alta"}), 400
+
+        folder_name = national_id
+        print("\n💾 Guardando foto de alta")
 
         person_path = os.path.join(photo_dir, folder_name)
         try:
@@ -224,7 +306,7 @@ def save_photo():
             if image is None:
                 return jsonify({"ok": False, "error": "Imagen inválida"}), 400
         except Exception as error:
-            print(f"❌ Error decodificando la foto de '{original_name}': {error}")
+            print(f"❌ Error decodificando la foto de alta: {error}")
             return jsonify({"ok": False, "error": f"Error decodificando: {str(error)}"}), 500
 
         try:
@@ -266,8 +348,8 @@ def save_photo():
 
             log_event(
                 "REGISTRO_DATOS_BIOMETRICOS",
-                f"Captura de imagen facial para {original_name}",
-                user=original_name,
+                "Captura de imagen facial para el alta",
+                user=national_id,
             )
             return jsonify({
                 "ok": True,
@@ -277,7 +359,7 @@ def save_photo():
                 "size": file_size,
             }), 200
         except Exception as error:
-            print(f"❌ Error guardando la foto de '{original_name}': {error}")
+            print(f"❌ Error guardando la foto de alta: {error}")
             import traceback
             traceback.print_exc()
             return jsonify({"ok": False, "error": f"Error guardando: {str(error)}"}), 500
@@ -291,60 +373,70 @@ def save_photo():
 
 @app.route("/train", methods=["POST"])
 def train():
-    """Train LBPH and keep the photo folder."""
+    """Train LBPH from data/{cedula}. A replacement rebuilds the whole model."""
+    national_id = None
     try:
-        data = request.get_json()
-        original_name = data.get("student", "").strip()
-        if not original_name:
-            return jsonify({"success": False, "error": "Nombre requerido"}), 400
+        if DEMO_MODE:
+            return jsonify({
+                "success": False,
+                "error": "El modo de prueba todavía no está afinado.",
+            }), 400
 
-        folder_name = sanitize_folder_name(original_name)
-        person_path = os.path.join(photo_dir, folder_name)
+        data = request.get_json() or {}
+        national_id = _national_id_from_request(data)
+        if not national_id:
+            return jsonify({"success": False, "error": "La cédula solo puede tener números"}), 400
+
+        person = lookup_student(national_id)
+        if person.get("status") != "student":
+            discard_capture(national_id)
+            return jsonify({"success": False, "error": "Esta cédula no sigue el alta"}), 400
+
+        already_consented = biometrico_is_true(national_id)
+        person_path = os.path.join(photo_dir, national_id)
+        previous_path = person_path + ".previous"
 
         print(f"\n{'='*60}")
         print("🤖 ENTRENANDO MODELO")
         print(f"{'='*60}")
-        print(f"Nombre original: '{original_name}'")
-        print(f"Nombre filesystem: '{folder_name}'")
-        print(f"Carpeta: {person_path}")
 
         if not os.path.exists(person_path):
             return jsonify({
                 "success": False,
-                "error": f"No se encontró la carpeta para {original_name}",
+                "error": "No se encontró la carpeta de la cédula",
             }), 404
 
         files = [name for name in os.listdir(person_path) if name.endswith(".jpg")]
         if len(files) == 0:
+            discard_capture(national_id)
             return jsonify({"success": False, "error": "No hay imágenes para entrenar"}), 400
 
         print(f"Imágenes encontradas: {len(files)}")
         image_files = [os.path.join(person_path, name) for name in files]
-        trained = train_incrementally({folder_name: image_files})
+        if os.path.isdir(previous_path) or national_id in label_dict:
+            trained = rebuild_model()
+        else:
+            trained = train_incrementally({national_id: image_files})
+
         if not trained:
+            discard_capture(national_id)
             return jsonify({"success": False, "error": "Falló el entrenamiento"}), 500
 
-        print(f"✔ Modelo entrenado con {len(image_files)} imágenes")
-        print(f"💾 Fotos mantenidas en: {person_path}")
-        print(f"   Total de imágenes: {len(files)}")
-        print("   Esto permite reentrenar o mejorar el modelo en el futuro")
-        print(f"{'='*60}")
+        if os.path.isdir(previous_path):
+            shutil.rmtree(previous_path)
+
+        if not already_consented:
+            record_acceptance(national_id)
+
         print("✅ ENTRENAMIENTO COMPLETADO")
-        print(f"   • Carpeta: '{folder_name}'")
         print(f"   • Imágenes preservadas: {len(files)}")
         print(f"   • Modelo guardado en: {model_path}")
         print(f"{'='*60}\n")
-
-        # Demo only: course 00000. Not the normal enrollment path.
-        print("\n🔥 INICIANDO REGISTRO EN FIREBASE (TEMPORAL)...")
-        firebase_id = enroll_demo_student(original_name)
 
         return jsonify({
             "success": True,
             "message": f"Modelo entrenado con {len(image_files)} imágenes",
             "images_trained": len(image_files),
-            "folder": folder_name,
-            "firebase_id": firebase_id,
         }), 200
 
     except Exception as error:

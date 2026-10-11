@@ -9,6 +9,7 @@ asistenciaconreconocimiento-firebase-adminsdk.json
 firebase_config_public.json
 .env
 *.xml
+backend/lbph_labels.json
 classroom_config.txt
 set_admin.py
 

@@ -964,6 +964,31 @@ form {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
+.aviso-popup {
+  position: relative;
+}
+
+.aviso-cerrar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: #771C07;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.aviso-texto {
+  color: #333;
+  font-size: 18px;
+  line-height: 1.5;
+  margin: 28px 8px 8px 8px;
+}
+
 .terminos-popup h2 {
   color: #3B7D23;
   margin: 0 0 20px 0;

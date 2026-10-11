@@ -2,7 +2,8 @@
 from datetime import datetime
 
 from classroom import current_classroom
-from constants import DEMO_COURSE_ID, DEMO_ID_MAX, DEMO_ID_MIN, LATE_AFTER_MINUTES
+from consent import biometrico_is_true
+from constants import DEMO_COURSE_ID, DEMO_ID_MAX, DEMO_ID_MIN, DEMO_MODE, LATE_AFTER_MINUTES
 from firebase_config import db
 from schedule import active_course_for_classroom
 
@@ -21,9 +22,32 @@ def normalize_person_name(name):
     return name.upper()
 
 
-def record_attendance(student_name, course_id=None, class_start=None):
-    """Change Ausente to Presente. Creates the day's document if it is missing."""
+def lookup_student(national_id):
+    """Read person/{cedula}. The cédula is the document id."""
+    if DEMO_MODE:
+        return {"status": "demo_unavailable"}
+    if not str(national_id).isdigit():
+        return {"status": "missing"}
+
+    document = db.collection("person").document(str(national_id)).get()
+    if not document.exists:
+        return {"status": "missing"}
+
+    fields = document.to_dict() or {}
+    if fields.get("type") != "Estudiante":
+        return {"status": "not_student"}
+
+    return {
+        "status": "student",
+        "name": fields.get("namePerson") or "",
+        "biometrico": biometrico_is_true(str(national_id)),
+    }
+
+
+def record_attendance(national_id, course_id=None, class_start=None):
+    """Change Ausente to Presente when this cédula is already on the class list."""
     try:
+        national_id = str(national_id)
         classroom_name = current_classroom()
 
         if not course_id:
@@ -33,34 +57,28 @@ def record_attendance(student_name, course_id=None, class_start=None):
             print("[!] NO SE REGISTRA ASISTENCIA: No hay curso activo")
             return False
 
+        if not national_id.isdigit():
+            print("[!] NO SE REGISTRA ASISTENCIA: el rostro no corresponde a una cédula")
+            return False
+
+        if not biometrico_is_true(national_id):
+            print("[!] NO SE REGISTRA ASISTENCIA: el dato biométrico no está autorizado")
+            return False
+
         today = datetime.now().strftime("%Y-%m-%d")
         current_time = datetime.now().strftime("%H:%M")
 
         print("\n=== ACTUALIZANDO ASISTENCIA ===")
-        print(f"Estudiante: '{student_name}'")
-
-        normalized_name = normalize_person_name(student_name)
-        print(f"Normalizado: '{normalized_name}'")
         print(f"Fecha: {today}")
         print(f"Hora: {current_time}")
         print(f"Curso: {course_id}")
 
-        people = db.collection("person").where("type", "==", "Estudiante").get()
-
-        student_doc = None
-        for doc in people:
-            data = doc.to_dict()
-            stored_name = normalize_person_name(data.get("namePerson", ""))
-            if stored_name == normalized_name:
-                student_doc = doc
-                break
-
-        if not student_doc:
-            print(f"[✖] ERROR: No se encontró al estudiante '{student_name}' en person")
+        student_doc = db.collection("person").document(national_id).get()
+        if not student_doc.exists or (student_doc.to_dict() or {}).get("type") != "Estudiante":
+            print("[✖] ERROR: No se encontró un estudiante con esa cédula")
             return False
 
         student_id = student_doc.id
-        print(f"ID encontrado: {student_id}")
 
         is_late = False
         if class_start:
@@ -80,13 +98,17 @@ def record_attendance(student_name, course_id=None, class_start=None):
         assistance_doc = assistance_ref.get()
 
         if not assistance_doc.exists:
-            print("[!] Documento no existe - Creando automáticamente...")
             course_doc = db.collection("courses").document(course_id).get()
             if not course_doc.exists:
                 print(f"[✖] ERROR: El curso {course_id} no existe")
                 return False
 
             student_ids = course_doc.to_dict().get("estudianteID", [])
+            if student_id not in student_ids and not DEMO_MODE:
+                print("[!] La cédula no está en la clase activa. No se escribe asistencia.")
+                return False
+
+            print("[!] Documento no existe - Creando automáticamente...")
             initial_data = {}
             for enrolled_id in student_ids:
                 initial_data[enrolled_id] = {
@@ -102,30 +124,20 @@ def record_attendance(student_name, course_id=None, class_start=None):
         existing = assistance_doc.to_dict() or {}
 
         if student_id not in existing:
-            print("[!] ADVERTENCIA: Estudiante no está registrado en este curso")
-            # Demo only: course 00000 can be attached on the fly. Not the normal path.
-            print("🔧 AGREGANDO ESTUDIANTE AL DOCUMENTO (TEMPORAL)")
-
-            person_doc = db.collection("person").document(student_id).get()
-            if person_doc.exists:
-                person_courses = person_doc.to_dict().get("courses", [])
-                if DEMO_COURSE_ID in person_courses:
-                    print(f"   ✓ Estudiante tiene curso de prueba ({DEMO_COURSE_ID})")
-                    print("   ✓ Agregando al registro de asistencia...")
-                    existing[student_id] = {
-                        "estadoAsistencia": "Ausente",
-                        "horaRegistro": None,
-                        "late": False,
-                    }
-                    assistance_ref.update({student_id: existing[student_id]})
-                    print("   ✅ Estudiante agregado al registro")
-                    print("   ℹ️ Continuando con actualización de asistencia...")
-                else:
-                    print("   ✗ Estudiante no tiene curso de prueba")
-                    return False
-            else:
-                print("   ✗ No se encontró el documento del estudiante")
+            print("[!] La cédula no está en la clase activa. No se escribe asistencia.")
+            if not DEMO_MODE:
                 return False
+
+            person_courses = (student_doc.to_dict() or {}).get("courses", [])
+            if DEMO_COURSE_ID not in person_courses:
+                return False
+
+            existing[student_id] = {
+                "estadoAsistencia": "Ausente",
+                "horaRegistro": None,
+                "late": False,
+            }
+            assistance_ref.update({student_id: existing[student_id]})
 
         current_status = existing[student_id].get("estadoAsistencia")
         print(f"Estado actual: {current_status}")
@@ -148,7 +160,7 @@ def record_attendance(student_name, course_id=None, class_start=None):
         return True
 
     except Exception as error:
-        print(f"[✖] ERROR registrando la asistencia de '{student_name}': {error}")
+        print(f"[✖] ERROR registrando la asistencia: {error}")
         import traceback
         traceback.print_exc()
         return False
@@ -156,6 +168,9 @@ def record_attendance(student_name, course_id=None, class_start=None):
 
 def enroll_demo_student(student_name):
     """Demo only: create a person with a random id and course 00000."""
+    if not DEMO_MODE:
+        print("El modo de prueba está apagado. No se crea un documento en person.")
+        return None
     try:
         import random
 

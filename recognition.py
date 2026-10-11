@@ -1,4 +1,5 @@
 """Recognition process. OpenCV and Firestore, only on localhost."""
+import os
 import sys
 
 import cv2
@@ -7,6 +8,7 @@ import attendance_scheduler
 import firebase_config  # noqa: F401  (initializes Firebase before the model)
 import face
 import classroom
+import consent
 import routes
 from constants import RECOGNITION_HOST, RECOGNITION_PORT
 
@@ -34,5 +36,9 @@ if __name__ == "__main__":
     attendance_scheduler.start_scheduler(classroom.classroom_for_scheduler)
     print("✅ Scheduler iniciado en hilo separado")
     print("=" * 60 + "\n")
+
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        consent.sweep_and_rebuild()
+        consent.start_listener()
 
     routes.app.run(debug=True, host=RECOGNITION_HOST, port=RECOGNITION_PORT)
