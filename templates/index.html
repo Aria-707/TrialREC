@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <title>Reconocimiento Facial Flask</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/styles.css') }}">
   <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap"
     rel="stylesheet">
 </head>
@@ -102,7 +102,7 @@
         <div class="faq-item">
           <h3>¿Cómo gestiono mis datos personales y consiento al tratamiento?</h3>
           <p>Los datos de nombre, cédula y horario son brindados por la universidad; si quieres modificarlos, acércate a los directivos de la institución.</p>
-          <p>Si quieres gestionar tu consentimiento al tratamiento de datos biométricos para el reconocimiento facial, haz clic en <a href="/gestion-datos" class="enlace-gestion">este enlace</a>.</p>
+          <p>El consentimiento al tratamiento de datos biométricos para el reconocimiento facial se gestiona en el portal de la universidad. Este kiosco no lo consulta ni lo revoca.</p>
         </div>
 
         <div class="faq-item">
@@ -171,7 +171,7 @@
         <span id="mensaje-texto"></span>
       </div>
 
-      <a href="{{ url_for('registrar') }}">
+      <a href="{{ url_for('enroll') }}">
         <button class="btn-registrar">Registrar nuevo estudiante</button>
       </a>
     </div>
@@ -182,86 +182,86 @@
   </div>
 
   <script type="module">
-    import { initFirebase } from "/static/firebaseCred.js";
+    import { init_firebase } from "/static/firebaseCred.js";
     import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
     // Inicializar Firebase
     let auth;
     try {
-      const firebaseApp = await initFirebase();
-      auth = firebaseApp.auth;
+      const firebase_app = await init_firebase();
+      auth = firebase_app.auth;
     } catch (error) {
       console.error('Error inicializando Firebase:', error);
     }
 
    // VARIABLES GLOBALES
-    const pantallaCarga = document.getElementById('pantalla-carga');
-    const pantallaEsperaSimple = document.getElementById('pantalla-espera-simple');
-    const pantallaEsperaContador = document.getElementById('pantalla-espera-contador');
-    const pantallaReconocimiento = document.getElementById('pantalla-reconocimiento');
-    const nombreProximoCurso = document.getElementById('nombre-proximo-curso');
-    const horaProximoCurso = document.getElementById('hora-proximo-curso');
-    const tiempoRestante = document.getElementById('tiempo-restante');
+    const loading_screen = document.getElementById('pantalla-carga');
+    const simple_wait_screen = document.getElementById('pantalla-espera-simple');
+    const countdown_screen = document.getElementById('pantalla-espera-contador');
+    const recognition_screen = document.getElementById('pantalla-reconocimiento');
+    const next_course_name_label = document.getElementById('nombre-proximo-curso');
+    const next_course_time_label = document.getElementById('hora-proximo-curso');
+    const remaining_time_label = document.getElementById('tiempo-restante');
 
     const video = document.getElementById('camara-video');
     const canvas = document.getElementById('overlay');
     const ctx = canvas.getContext('2d');
-    const backendUrl = '/registro';
+    const recognize_url = '/recognize';
 
-    const configButton = document.getElementById('config-button');
-    const salonBadge = document.getElementById('salon-badge');
-    const salonText = document.getElementById('salon-text');
-    const configModal = document.getElementById('config-modal');
-    const btnCerrarModal = document.getElementById('btn-cerrar-modal');
+    const config_button = document.getElementById('config-button');
+    const classroom_badge = document.getElementById('salon-badge');
+    const classroom_label = document.getElementById('salon-text');
+    const config_modal = document.getElementById('config-modal');
+    const close_modal_button = document.getElementById('btn-cerrar-modal');
 
-    const authStep = document.getElementById('auth-step');
-    const salonStep = document.getElementById('salon-step');
-    const modalAdminEmail = document.getElementById('modal-admin-email');
-    const modalAdminPassword = document.getElementById('modal-admin-password');
-    const btnModalVerificar = document.getElementById('btn-modal-verificar');
-    const modalError = document.getElementById('modal-error');
+    const auth_step = document.getElementById('auth-step');
+    const classroom_step = document.getElementById('salon-step');
+    const admin_email_input = document.getElementById('modal-admin-email');
+    const admin_password_input = document.getElementById('modal-admin-password');
+    const check_admin_button = document.getElementById('btn-modal-verificar');
+    const modal_error = document.getElementById('modal-error');
 
-    const modalSalonSelect = document.getElementById('modal-salon-select');
-    const btnModalConfirmar = document.getElementById('btn-modal-confirmar');
-    const btnModalCancelar = document.getElementById('btn-modal-cancelar');
+    const classroom_select = document.getElementById('modal-salon-select');
+    const confirm_classroom_button = document.getElementById('btn-modal-confirmar');
+    const cancel_classroom_button = document.getElementById('btn-modal-cancelar');
 
-    let salonesDisponibles = [];
-    let isAdmin = false;
-    let intervaloVerificacion = null;
-    let intervaloCuentaRegresiva = null;
-    let modoActual = null; // 'cargando', 'espera_simple', 'espera_contador', 'reconocimiento'
-    let camaraIniciada = false;
+    let available_classrooms = [];
+    let is_admin = false;
+    let check_interval = null;
+    let countdown_interval = null;
+    let current_mode = null;
+    let camera_started = false;
 
     // ============================================
     // VERIFICACIÓN DE CURSO ACTIVO
     // ============================================
-    async function verificarCursoActivo() {
+    async function check_active_course() {
       try {
-        const response = await fetch('/api/verificar_curso_activo');
+        const response = await fetch('/api/active_course');
         const data = await response.json();
 
         console.log('Estado del sistema:', data);
 
-        if (data.curso_activo) {
+        if (data.course_active) {
           // MODO 4: HAY CURSO ACTIVO - Reconocimiento
-          if (modoActual !== 'reconocimiento') {
+          if (current_mode !== 'recognition') {
             console.log('✅ Activando modo RECONOCIMIENTO');
-            activarModoReconocimiento();
+            show_recognition();
           }
-        } else if (data.proximo_curso) {
+        } else if (data.next_course) {
           // MODO 3: Hay curso próximo (≤5 min) - Contador
-          if (modoActual !== 'espera_contador') {
+          if (current_mode !== 'countdown_wait') {
             console.log('⏰ Activando modo ESPERA CON CONTADOR');
-            activarModoEsperaContador(data.proximo_curso);
+            show_countdown_wait(data.next_course);
           } else {
             // Ya estamos en contador, solo actualizar
-            actualizarInfoProximoCurso(data.proximo_curso);
+            update_next_course(data.next_course);
           }
         } else {
           // MODO 2: No hay cursos próximos - Espera simple
-          if (modoActual !== 'espera_simple') {
+          if (current_mode !== 'simple_wait') {
             console.log('⏸️ Activando modo ESPERA SIMPLE');
-            activarModoEsperaSimple();
+            show_simple_wait();
           }
         }
       } catch (error) {
@@ -269,204 +269,204 @@
       }
     }
 
-    function ocultarTodasPantallas() {
-      pantallaCarga.classList.remove('visible');
-      pantallaEsperaSimple.classList.remove('visible');
-      pantallaEsperaContador.classList.remove('visible');
-      pantallaReconocimiento.classList.remove('visible');
+    function hide_all_screens() {
+      loading_screen.classList.remove('visible');
+      simple_wait_screen.classList.remove('visible');
+      countdown_screen.classList.remove('visible');
+      recognition_screen.classList.remove('visible');
     }
 
-    function activarModoCargando() {
-      modoActual = 'cargando';
-      ocultarTodasPantallas();
-      pantallaCarga.classList.add('visible');
-      detenerCamara();
-      detenerContador();
+    function show_loading() {
+      current_mode = 'loading';
+      hide_all_screens();
+      loading_screen.classList.add('visible');
+      stop_camera();
+      stop_countdown();
     }
 
-    function activarModoEsperaSimple() {
-      modoActual = 'espera_simple';
-      ocultarTodasPantallas();
-      pantallaEsperaSimple.classList.add('visible');
-      detenerCamara();
-      detenerContador();
+    function show_simple_wait() {
+      current_mode = 'simple_wait';
+      hide_all_screens();
+      simple_wait_screen.classList.add('visible');
+      stop_camera();
+      stop_countdown();
     }
 
-    function activarModoEsperaContador(proximoCurso) {
-      modoActual = 'espera_contador';
-      ocultarTodasPantallas();
-      pantallaEsperaContador.classList.add('visible');
-      detenerCamara();
-      actualizarInfoProximoCurso(proximoCurso);
-      iniciarCuentaRegresiva(proximoCurso);
+    function show_countdown_wait(next_course) {
+      current_mode = 'countdown_wait';
+      hide_all_screens();
+      countdown_screen.classList.add('visible');
+      stop_camera();
+      update_next_course(next_course);
+      start_countdown(next_course);
     }
 
-    function activarModoReconocimiento() {
-      modoActual = 'reconocimiento';
-      ocultarTodasPantallas();
-      pantallaReconocimiento.classList.add('visible');
-      detenerContador();
+    function show_recognition() {
+      current_mode = 'recognition';
+      hide_all_screens();
+      recognition_screen.classList.add('visible');
+      stop_countdown();
       
-      if (!camaraIniciada) {
-        iniciarCamara();
+      if (!camera_started) {
+        start_camera();
       }
     }
 
-    function detenerCamara() {
-      if (camaraIniciada && video.srcObject) {
+    function stop_camera() {
+      if (camera_started && video.srcObject) {
         const tracks = video.srcObject.getTracks();
         tracks.forEach(track => track.stop());
         video.srcObject = null;
-        camaraIniciada = false;
+        camera_started = false;
         console.log('📷 Cámara detenida');
       }
     }
 
-    function detenerContador() {
-      if (intervaloCuentaRegresiva) {
-        clearInterval(intervaloCuentaRegresiva);
-        intervaloCuentaRegresiva = null;
+    function stop_countdown() {
+      if (countdown_interval) {
+        clearInterval(countdown_interval);
+        countdown_interval = null;
       }
     }
 
-    function actualizarInfoProximoCurso(proximoCurso) {
-      if (proximoCurso) {
-        nombreProximoCurso.textContent = proximoCurso.nombre_curso;
-        horaProximoCurso.textContent = `Hora de inicio: ${proximoCurso.hora_inicio}`;
+    function update_next_course(next_course) {
+      if (next_course) {
+        next_course_name_label.textContent = next_course.course_name;
+        next_course_time_label.textContent = `Hora de inicio: ${next_course.start_time}`;
       }
     }
 
-    function iniciarCuentaRegresiva(proximoCurso) {
-      detenerContador();
+    function start_countdown(next_course) {
+      stop_countdown();
 
-      intervaloCuentaRegresiva = setInterval(() => {
-        const ahora = new Date();
-        const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
+      countdown_interval = setInterval(() => {
+        const now = new Date();
+        const current_minutes = now.getHours() * 60 + now.getMinutes();
 
-        const [horaInicio, minInicio] = proximoCurso.hora_inicio.split(':').map(Number);
-        const horaInicioCurso = horaInicio * 60 + minInicio;
+        const [start_hour, start_minute] = next_course.start_time.split(':').map(Number);
+        const class_start_minutes = start_hour * 60 + start_minute;
 
         // El registro se abre 5 minutos ANTES
-        const horaApertura = horaInicioCurso - 5;
+        const open_minutes = class_start_minutes - 5;
 
-        let minutosRestantes = horaApertura - horaActual;
-        let segundosRestantes = (60 - ahora.getSeconds()) % 60;
+        let minutes_left = open_minutes - current_minutes;
+        let seconds_left = (60 - now.getSeconds()) % 60;
 
-        if (minutosRestantes < 0 || (minutosRestantes === 0 && segundosRestantes === 0)) {
-          tiempoRestante.textContent = '00:00';
-          detenerContador();
-          verificarCursoActivo();
+        if (minutes_left < 0 || (minutes_left === 0 && seconds_left === 0)) {
+          remaining_time_label.textContent = '00:00';
+          stop_countdown();
+          check_active_course();
           return;
         }
 
         // Ajustar segundos
-        if (segundosRestantes === 60) {
-          segundosRestantes = 0;
-        } else if (segundosRestantes > 0) {
-          minutosRestantes -= 1;
+        if (seconds_left === 60) {
+          seconds_left = 0;
+        } else if (seconds_left > 0) {
+          minutes_left -= 1;
         }
 
-        tiempoRestante.textContent = 
-          `${String(minutosRestantes).padStart(2, '0')}:${String(segundosRestantes).padStart(2, '0')}`;
+        remaining_time_label.textContent = 
+          `${String(minutes_left).padStart(2, '0')}:${String(seconds_left).padStart(2, '0')}`;
       }, 1000);
     }
 
     // ============================================
     // GESTIÓN DE FAQ
     // ============================================
-    const faqButton = document.getElementById('faq-button');
-    const faqModal = document.getElementById('faq-modal');
-    const btnCerrarFaq = document.getElementById('btn-cerrar-faq');
+    const faq_button = document.getElementById('faq-button');
+    const faq_modal = document.getElementById('faq-modal');
+    const close_faq_button = document.getElementById('btn-cerrar-faq');
 
-    faqButton.addEventListener('click', () => {
-      faqModal.classList.add('active');
+    faq_button.addEventListener('click', () => {
+      faq_modal.classList.add('active');
     });
 
-    btnCerrarFaq.addEventListener('click', () => {
-      faqModal.classList.remove('active');
+    close_faq_button.addEventListener('click', () => {
+      faq_modal.classList.remove('active');
     });
 
-    faqModal.addEventListener('click', (e) => {
-      if (e.target === faqModal) {
-        faqModal.classList.remove('active');
+    faq_modal.addEventListener('click', (e) => {
+      if (e.target === faq_modal) {
+        faq_modal.classList.remove('active');
       }
     });
 
     // ============================================
     // GESTIÓN DE CONFIGURACIÓN DE SALÓN
     // ============================================
-    async function cargarSalonActual() {
+    async function load_current_classroom() {
       try {
-        const response = await fetch('/api/salon_actual');
+        const response = await fetch('/api/current_classroom');
         const data = await response.json();
 
-        if (data.success && data.salon) {
-          salonText.textContent = data.salon;
-          salonBadge.classList.add('visible');
+        if (data.success && data.classroom) {
+          classroom_label.textContent = data.classroom;
+          classroom_badge.classList.add('visible');
         } else {
-          salonText.textContent = 'No configurado';
-          salonBadge.classList.add('visible');
-          salonBadge.style.background = 'rgba(255, 165, 0, 0.9)';
+          classroom_label.textContent = 'No configurado';
+          classroom_badge.classList.add('visible');
+          classroom_badge.style.background = 'rgba(255, 165, 0, 0.9)';
         }
       } catch (error) {
         console.error('Error cargando salón actual:', error);
-        salonText.textContent = 'Error';
-        salonBadge.style.background = 'rgba(255, 0, 0, 0.9)';
+        classroom_label.textContent = 'Error';
+        classroom_badge.style.background = 'rgba(255, 0, 0, 0.9)';
       }
     }
 
-    async function cargarListaSalones() {
+    async function load_classrooms() {
       try {
-        const response = await fetch('/api/salones');
+        const response = await fetch('/api/classrooms');
         const data = await response.json();
 
-        if (data.success && data.salones) {
-          salonesDisponibles = data.salones;
+        if (data.success && data.classrooms) {
+          available_classrooms = data.classrooms;
 
-          modalSalonSelect.innerHTML = '<option value="">-- Selecciona un salón --</option>';
+          classroom_select.innerHTML = '<option value="">-- Selecciona un salón --</option>';
 
-          data.salones.forEach(salon => {
+          data.classrooms.forEach(classroom_name => {
             const option = document.createElement('option');
-            option.value = salon;
-            option.textContent = salon;
-            modalSalonSelect.appendChild(option);
+            option.value = classroom_name;
+            option.textContent = classroom_name;
+            classroom_select.appendChild(option);
           });
 
-          console.log(`✔ ${data.salones.length} salones cargados`);
+          console.log(`✔ ${data.classrooms.length} salones cargados`);
         }
       } catch (error) {
         console.error('Error cargando salones:', error);
-        modalSalonSelect.innerHTML = '<option value="">Error al cargar salones</option>';
+        classroom_select.innerHTML = '<option value="">Error al cargar salones</option>';
       }
     }
 
-    configButton.addEventListener('click', () => {
-      configModal.classList.add('active');
-      authStep.style.display = 'block';
-      salonStep.style.display = 'none';
-      modalAdminEmail.value = '';
-      modalAdminPassword.value = '';
-      modalError.style.display = 'none';
-      isAdmin = false;
+    config_button.addEventListener('click', () => {
+      config_modal.classList.add('active');
+      auth_step.style.display = 'block';
+      classroom_step.style.display = 'none';
+      admin_email_input.value = '';
+      admin_password_input.value = '';
+      modal_error.style.display = 'none';
+      is_admin = false;
     });
 
-    btnCerrarModal.addEventListener('click', () => {
-      configModal.classList.remove('active');
+    close_modal_button.addEventListener('click', () => {
+      config_modal.classList.remove('active');
     });
 
-    async function verificarAdminModal() {
-      const email = modalAdminEmail.value.trim();
-      const password = modalAdminPassword.value.trim();
+    async function check_admin_modal() {
+      const email = admin_email_input.value.trim();
+      const password = admin_password_input.value.trim();
 
       if (!email || !password) {
-        modalError.textContent = 'Por favor ingresa correo y contraseña';
-        modalError.style.display = 'block';
+        modal_error.textContent = 'Por favor ingresa correo y contraseña';
+        modal_error.style.display = 'block';
         return;
       }
 
-      btnModalVerificar.disabled = true;
-      btnModalVerificar.textContent = 'Verificando...';
-      modalError.style.display = 'none';
+      check_admin_button.disabled = true;
+      check_admin_button.textContent = 'Verificando...';
+      modal_error.style.display = 'none';
 
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -474,164 +474,164 @@
         const idTokenResult = await user.getIdTokenResult();
 
         if (idTokenResult.claims && idTokenResult.claims.admin === true) {
-          isAdmin = true;
+          is_admin = true;
 
-          if (salonesDisponibles.length === 0) {
-            await cargarListaSalones();
+          if (available_classrooms.length === 0) {
+            await load_classrooms();
           }
 
-          authStep.style.display = 'none';
-          salonStep.style.display = 'block';
+          auth_step.style.display = 'none';
+          classroom_step.style.display = 'block';
         } else {
           throw new Error('No tienes permisos de administrador');
         }
       } catch (error) {
-        let mensaje = '';
-        if (error.code === 'auth/user-not-found') mensaje = 'Usuario no encontrado';
-        else if (error.code === 'auth/wrong-password') mensaje = 'Contraseña incorrecta';
-        else if (error.code === 'auth/invalid-email') mensaje = 'Correo inválido';
-        else mensaje = error.message;
+        let error_text = '';
+        if (error.code === 'auth/user-not-found') error_text = 'Usuario no encontrado';
+        else if (error.code === 'auth/wrong-password') error_text = 'Contraseña incorrecta';
+        else if (error.code === 'auth/invalid-email') error_text = 'Correo inválido';
+        else error_text = error.message;
 
-        modalError.textContent = mensaje;
-        modalError.style.display = 'block';
-        btnModalVerificar.disabled = false;
-        btnModalVerificar.textContent = 'Verificar';
+        modal_error.textContent = error_text;
+        modal_error.style.display = 'block';
+        check_admin_button.disabled = false;
+        check_admin_button.textContent = 'Verificar';
       }
     }
 
-    btnModalVerificar.addEventListener('click', verificarAdminModal);
+    check_admin_button.addEventListener('click', check_admin_modal);
 
-    modalAdminPassword.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') verificarAdminModal();
+    admin_password_input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') check_admin_modal();
     });
 
-    btnModalConfirmar.addEventListener('click', async () => {
-      if (!isAdmin) {
+    confirm_classroom_button.addEventListener('click', async () => {
+      if (!is_admin) {
         alert('Error de autenticación');
-        configModal.classList.remove('active');
+        config_modal.classList.remove('active');
         return;
       }
 
-      const nuevoSalon = modalSalonSelect.value;
-      if (!nuevoSalon) {
+      const selected_classroom = classroom_select.value;
+      if (!selected_classroom) {
         alert('Por favor selecciona un salón');
         return;
       }
 
-      btnModalConfirmar.disabled = true;
-      btnModalConfirmar.textContent = 'Configurando...';
+      confirm_classroom_button.disabled = true;
+      confirm_classroom_button.textContent = 'Configurando...';
 
       try {
-        const response = await fetch('/api/configurar_salon', {
+        const response = await fetch('/api/set_classroom', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ salon: nuevoSalon })
+          body: JSON.stringify({ classroom: selected_classroom })
         });
 
         const data = await response.json();
         if (!data.success) throw new Error(data.error || 'Error al configurar salón');
 
-        await fetch('/api/limpiar_registros', {
+        await fetch('/api/clear_recognitions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
 
-        btnModalConfirmar.textContent = '¡Configurado!';
-        btnModalConfirmar.style.background = '#275317';
-        btnModalConfirmar.style.color = '#b6b6b6';
-        salonText.textContent = nuevoSalon;
-        salonBadge.style.background = 'rgba(0, 255, 0, 0.9)';
+        confirm_classroom_button.textContent = '¡Configurado!';
+        confirm_classroom_button.style.background = '#275317';
+        confirm_classroom_button.style.color = '#b6b6b6';
+        classroom_label.textContent = selected_classroom;
+        classroom_badge.style.background = 'rgba(0, 255, 0, 0.9)';
 
-        configModal.classList.remove('active');
+        config_modal.classList.remove('active');
 
-        activarModoCargando();
-        await verificarCursoActivo();
+        show_loading();
+        await check_active_course();
 
       } catch (error) {
         alert('Error: ' + error.message);
-        btnModalConfirmar.disabled = false;
-        btnModalConfirmar.textContent = 'Confirmar';
+        confirm_classroom_button.disabled = false;
+        confirm_classroom_button.textContent = 'Confirmar';
       }
     });
 
-    btnModalCancelar.addEventListener('click', () => {
-      configModal.classList.remove('active');
+    cancel_classroom_button.addEventListener('click', () => {
+      config_modal.classList.remove('active');
     });
 
-    configModal.addEventListener('click', (e) => {
-      if (e.target === configModal) {
-        configModal.classList.remove('active');
+    config_modal.addEventListener('click', (e) => {
+      if (e.target === config_modal) {
+        config_modal.classList.remove('active');
       }
     });
 
     // ============================================
     // RECONOCIMIENTO FACIAL
     // ============================================
-    const mensajeEstado = document.getElementById('mensaje-estado');
-    const mensajeTexto = document.getElementById('mensaje-texto');
+    const status_message = document.getElementById('mensaje-estado');
+    const status_text = document.getElementById('mensaje-texto');
 
-    function mostrarMensaje(categoria, nombreEstudiante) {
-      mensajeEstado.style.display = 'flex';
-      mensajeEstado.className = 'mensaje-estado';
+    function show_message(arrival_category, student_name) {
+      status_message.style.display = 'flex';
+      status_message.className = 'mensaje-estado';
 
-      switch (categoria) {
-        case 'temprano':
-          mensajeTexto.textContent = `Llegaste temprano ¡Muy bien!`;
+      switch (arrival_category) {
+        case 'early':
+          status_text.textContent = `Llegaste temprano ¡Muy bien!`;
           break;
-        case 'justo_a_tiempo':
-          mensajeTexto.textContent = `Justo a tiempo ¡Que puntual!`;
+        case 'on_time':
+          status_text.textContent = `Justo a tiempo ¡Que puntual!`;
           break;
-        case 'llego':
-          mensajeTexto.textContent = `¡Asistencia registrada! Bienvenido.`;
+        case 'arrived':
+          status_text.textContent = `¡Asistencia registrada! Bienvenido.`;
           break;
-        case 'tarde':
-          mensajeTexto.textContent = `¡Intenta llegar más temprano!`;
+        case 'late':
+          status_text.textContent = `¡Intenta llegar más temprano!`;
           break;
         case 'error':
-          mensajeTexto.textContent = 'Rostro no reconocido';
+          status_text.textContent = 'Rostro no reconocido';
           break;
       }
 
       setTimeout(() => {
-        mensajeEstado.style.display = 'none';
+        status_message.style.display = 'none';
       }, 5000);
     }
 
-    async function iniciarCamara() {
+    async function start_camera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = stream;
         await video.play();
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        camaraIniciada = true;
+        camera_started = true;
         console.log('📷 Cámara iniciada');
-        setInterval(enviarFotograma, 2000);
+        setInterval(send_frame, 2000);
       } catch (err) {
         console.error("Error cámara:", err);
       }
     }
 
-    function dibujar(box, reconocido, confianza, nombre) {
+    function draw_box(box, is_recognized, confidence, person_name) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const [x, y, w, h] = box;
       const mirroredX = canvas.width - x - w;
 
       ctx.lineWidth = 3;
-      ctx.strokeStyle = reconocido ? 'lime' : 'red';
+      ctx.strokeStyle = is_recognized ? 'lime' : 'red';
       ctx.strokeRect(mirroredX, y, w, h);
 
-      ctx.fillStyle = reconocido ? 'lime' : 'red';
+      ctx.fillStyle = is_recognized ? 'lime' : 'red';
       ctx.font = '20px Arial';
       ctx.fillText(
-        reconocido ? `${nombre} (${confianza.toFixed(1)})` : `Desconocido (${confianza.toFixed(1)})`,
+        is_recognized ? `${person_name} (${confidence.toFixed(1)})` : `Desconocido (${confidence.toFixed(1)})`,
         mirroredX,
         y - 10
       );
     }
 
-    async function enviarFotograma() {
-      if (!camaraIniciada || modoActual !== 'reconocimiento') return;
+    async function send_frame() {
+      if (!camera_started || current_mode !== 'recognition') return;
 
       const tmp = document.createElement('canvas');
       tmp.width = video.videoWidth;
@@ -641,22 +641,22 @@
       const imgBase64 = tmp.toDataURL('image/jpeg');
 
       try {
-        const res = await fetch(backendUrl, {
+        const res = await fetch(recognize_url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: imgBase64 })
         });
         const data = await res.json();
 
-        if (data.estado === 'reconocido') {
-          dibujar(data.box, true, data.confianza, data.estudiante);
+        if (data.status === 'recognized') {
+          draw_box(data.box, true, data.confidence, data.student);
 
-          if (data.categoria_llegada) {
-            mostrarMensaje(data.categoria_llegada, data.estudiante);
+          if (data.arrival_category) {
+            show_message(data.arrival_category, data.student);
           }
-        } else if (data.estado === 'desconocido') {
-          dibujar(data.box, false, data.confianza);
-          mostrarMensaje('error', '');
+        } else if (data.status === 'unknown') {
+          draw_box(data.box, false, data.confidence);
+          show_message('error', '');
         } else {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
@@ -668,17 +668,17 @@
     // ============================================
     // INICIALIZACIÓN
     // ============================================
-    async function inicializar() {
-      activarModoCargando();
-      await cargarSalonActual();
-      await verificarCursoActivo();
+    async function start_kiosk() {
+      show_loading();
+      await load_current_classroom();
+      await check_active_course();
 
-      intervaloVerificacion = setInterval(verificarCursoActivo, 30000);
+      check_interval = setInterval(check_active_course, 30000);
 
       console.log('🚀 Sistema iniciado - Verificación automática cada 30s');
     }
 
-    inicializar();
+    start_kiosk();
   </script>
 </body>
 

@@ -315,17 +315,6 @@ body {
   font-size: 15px;
 }
 
-.enlace-gestion {
-  color: #3B7D23;
-  font-weight: bold;
-  text-decoration: underline;
-  transition: all 0.3s;
-}
-
-.enlace-gestion:hover {
-  color: #275317;
-}
-
 @keyframes slideIn {
   from {
     transform: translateX(100px);

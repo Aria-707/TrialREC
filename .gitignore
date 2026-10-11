@@ -1,15 +1,18 @@
 importarFirebase/
-Data/
+data/
 node_modules/
+.venv/
+__pycache__/
 
-# Firebase credentials s
+# Firebase credentials
 asistenciaconreconocimiento-firebase-adminsdk.json
 firebase_config_public.json
 .env
 *.xml
-salon_config.txt
+classroom_config.txt
 set_admin.py
 
-clave_encriptacion.key
-salt_encriptacion.key
-logs_auditoria.json
+encryption.key
+encryption_salt.key
+audit_log.json
+GUIA_DEL_SISTEMA.md

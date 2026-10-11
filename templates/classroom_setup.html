@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Configuración del Sistema - Reconocimiento Facial</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/styles.css') }}">
+</head>
+<body>
+  <div class="contenedor-principal">
+    <div class="config-container">
+      
+      <div class="config-header">
+        <h1>Configuración del Sistema</h1>
+        <p>Autenticación de administrador requerida</p>
+      </div>
+
+      <div id="error-container"></div>
+
+      <!-- SECCIÓN DE AUTENTICACIÓN -->
+      <div id="auth-section" class="auth-section">
+        <h3>Verificación de Administrador</h3>
+        <input type="email" id="admin-email" placeholder="Correo electrónico">
+        <input type="password" id="admin-password" placeholder="Contraseña">
+        <button id="btn-verificar" class="btn-verificar">Verificar Credenciales</button>
+      </div>
+
+      <div id="loading" class="loading hidden">
+        Cargando salones disponibles...
+      </div>
+
+      <div id="form-container" class="hidden">
+        <div class="form-group">
+          <label for="salon-select">
+            Salón de clases:
+          </label>
+          <select id="salon-select">
+            <option value="">-- Selecciona un salón --</option>
+          </select>
+        </div>
+
+        <button id="btn-confirmar" class="btn-confirmar" disabled>
+          Confirmar y Continuar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="logo">
+    <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
+  </div>
+
+<script type="module">
+import { init_firebase } from "/static/firebaseCred.js";
+  import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+
+  const { auth } = await init_firebase();
+  // Elementos DOM (igual que tenías)
+  const auth_section = document.getElementById('auth-section');
+  const loading_block = document.getElementById('loading');
+  const form_container = document.getElementById('form-container');
+  const error_container = document.getElementById('error-container');
+  const classroom_select = document.getElementById('salon-select');
+  const confirm_button = document.getElementById('btn-confirmar');
+  const check_button = document.getElementById('btn-verificar');
+  const admin_email_input = document.getElementById('admin-email');
+  const admin_password_input = document.getElementById('admin-password');
+
+  let is_admin = false;
+
+  async function check_admin() {
+    const email = admin_email_input.value.trim();
+    const password = admin_password_input.value.trim();
+
+    if (!email || !password) {
+      show_error('Por favor ingresa correo y contraseña');
+      return;
+    }
+
+    check_button.disabled = true;
+    check_button.textContent = 'Verificando...';
+    error_container.innerHTML = '';
+
+    try {
+      // Usa la función de autenticación del cliente
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // getIdTokenResult está disponible en el user: obtiene claims (custom claims)
+      const idTokenResult = await user.getIdTokenResult();
+
+      if (idTokenResult.claims && idTokenResult.claims.admin === true) {
+        is_admin = true;
+        auth_section.classList.add('hidden');
+        loading_block.classList.remove('hidden');
+        await load_classrooms();
+      } else {
+        throw new Error('No tienes permisos de administrador');
+      }
+    } catch (error) {
+      console.error('Error de autenticación:', error);
+      let error_text = 'Error: ';
+      if (error.code === 'auth/user-not-found') error_text += 'Usuario no encontrado';
+      else if (error.code === 'auth/wrong-password') error_text += 'Contraseña incorrecta';
+      else if (error.code === 'auth/invalid-email') error_text += 'Correo electrónico inválido';
+      else error_text += error.message || error;
+      show_error(error_text);
+      check_button.disabled = false;
+      check_button.textContent = 'Verificar Credenciales';
+    }
+  }
+
+  async function load_classrooms() {
+    try {
+      const response = await fetch('/api/classrooms');
+      const data = await response.json();
+
+      if (!data.success) throw new Error(data.error || 'Error al cargar salones');
+
+      if (!data.classrooms || data.classrooms.length === 0) {
+        show_error('No se encontraron salones configurados en el sistema');
+        loading_block.classList.add('hidden');
+        return;
+      }
+
+      data.classrooms.forEach(classroom_name => {
+        const option = document.createElement('option');
+        option.value = classroom_name;
+        option.textContent = classroom_name;
+        classroom_select.appendChild(option);
+      });
+
+      loading_block.classList.add('hidden');
+      form_container.classList.remove('hidden');
+      console.log(`✔ ${data.classrooms.length} salones cargados`);
+    } catch (error) {
+      console.error('Error cargando salones:', error);
+      show_error('Error: ' + (error.message || error));
+      loading_block.classList.add('hidden');
+    }
+  }
+
+  function show_error(error_text) {
+    error_container.innerHTML = `
+      <div class="error-message">
+        ${error_text}
+      </div>
+    `;
+  }
+
+  classroom_select.addEventListener('change', () => {
+    confirm_button.disabled = !classroom_select.value;
+  });
+
+  async function confirm_setup() {
+    if (!is_admin) {
+      show_error('Debes autenticarte como administrador primero');
+      return;
+    }
+    const classroom_name = classroom_select.value;
+    if (!classroom_name) { alert('Por favor selecciona un salón'); return; }
+
+    confirm_button.disabled = true;
+    confirm_button.textContent = 'Configurando...';
+
+    try {
+      const response = await fetch('/api/set_classroom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroom: classroom_name })
+      });
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'Error al configurar salón');
+
+      confirm_button.textContent = '¡Configurado!';
+      confirm_button.style.background = '#275317';
+      confirm_button.style.color = '#b6b6b6';
+      setTimeout(() => window.location.href = '/', 1000);
+    } catch (error) {
+      console.error('Error configurando salón:', error);
+      show_error((error.message || error));
+      confirm_button.disabled = false;
+      confirm_button.textContent = 'Confirmar y Continuar';
+    }
+  }
+
+  confirm_button.addEventListener('click', confirm_setup);
+  check_button.addEventListener('click', check_admin);
+  admin_password_input.addEventListener('keypress', (e) => { if (e.key === 'Enter') check_admin(); });
+
+  console.log('🚀 Página de configuración cargada');
+</script>
+
+</body>
+</html>

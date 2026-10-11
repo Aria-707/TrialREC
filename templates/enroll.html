@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <title>Registrar Estudiante - Reconocimiento Facial</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="{{ url_for('static', filename='estilos/estilos.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/styles.css') }}">
 </head>
 
 <body>
@@ -152,14 +152,14 @@
   </div>
 
   <script type="module">
-    import { initFirebase } from "/static/firebaseCred.js";
+    import { init_firebase } from "/static/firebaseCred.js";
     import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
     // Inicializar Firebase
     let auth;
     try {
-      const firebaseApp = await initFirebase();
-      auth = firebaseApp.auth;
+      const firebase_app = await init_firebase();
+      auth = firebase_app.auth;
     } catch (error) {
       console.error('Error inicializando Firebase:', error);
     }
@@ -168,117 +168,117 @@
     const video = document.getElementById('camara-video');
     const canvas = document.getElementById('overlay');
     const ctx = canvas.getContext('2d');
-    const nombreInput = document.getElementById('estudiante');
-    const btnCapturar = document.getElementById('btn-capturar');
-    const resultado = document.getElementById('resultado-reconocimiento');
-    const progresoContainer = document.getElementById('progreso-container');
-    const progresoFill = document.getElementById('progreso-fill');
-    const progresoTexto = document.getElementById('progreso-texto');
+    const name_input = document.getElementById('estudiante');
+    const capture_button = document.getElementById('btn-capturar');
+    const result_label = document.getElementById('resultado-reconocimiento');
+    const progress_container = document.getElementById('progreso-container');
+    const progress_fill = document.getElementById('progreso-fill');
+    const progress_text = document.getElementById('progreso-texto');
 
-    const configButton = document.getElementById('config-button');
-    const salonBadge = document.getElementById('salon-badge');
-    const salonText = document.getElementById('salon-text');
-    const configModal = document.getElementById('config-modal');
+    const config_button = document.getElementById('config-button');
+    const classroom_badge = document.getElementById('salon-badge');
+    const classroom_label = document.getElementById('salon-text');
+    const config_modal = document.getElementById('config-modal');
 
-    const authStep = document.getElementById('auth-step');
-    const salonStep = document.getElementById('salon-step');
-    const modalAdminEmail = document.getElementById('modal-admin-email');
-    const modalAdminPassword = document.getElementById('modal-admin-password');
-    const btnModalVerificar = document.getElementById('btn-modal-verificar');
-    const modalError = document.getElementById('modal-error');
+    const auth_step = document.getElementById('auth-step');
+    const classroom_step = document.getElementById('salon-step');
+    const admin_email_input = document.getElementById('modal-admin-email');
+    const admin_password_input = document.getElementById('modal-admin-password');
+    const check_admin_button = document.getElementById('btn-modal-verificar');
+    const modal_error = document.getElementById('modal-error');
 
-    const modalSalonSelect = document.getElementById('modal-salon-select');
-    const btnModalConfirmar = document.getElementById('btn-modal-confirmar');
-    const btnModalCancelar = document.getElementById('btn-modal-cancelar');
-    const btnCerrarModal = document.getElementById('btn-cerrar-modal');
+    const classroom_select = document.getElementById('modal-salon-select');
+    const confirm_classroom_button = document.getElementById('btn-modal-confirmar');
+    const cancel_classroom_button = document.getElementById('btn-modal-cancelar');
+    const close_modal_button = document.getElementById('btn-cerrar-modal');
 
-    let capturando = false;
-    let deteccionInterval = null;
-    let salonesDisponibles = [];
-    let isAdmin = false;
-    let terminosAceptados = false;
+    let capturing = false;
+    let detection_interval = null;
+    let available_classrooms = [];
+    let is_admin = false;
+    let terms_accepted = false;
 
     // ============================================
     // GESTIÓN DE CONFIGURACIÓN DE SALÓN
     // ============================================
 
     // CARGAR SALÓN ACTUAL
-    async function cargarSalonActual() {
+    async function load_current_classroom() {
       try {
-        const response = await fetch('/api/salon_actual');
+        const response = await fetch('/api/current_classroom');
         const data = await response.json();
 
-        if (data.success && data.salon) {
-          salonText.textContent = data.salon;
-          salonBadge.classList.add('visible');
+        if (data.success && data.classroom) {
+          classroom_label.textContent = data.classroom;
+          classroom_badge.classList.add('visible');
         } else {
-          salonText.textContent = 'No configurado';
-          salonBadge.classList.add('visible');
-          salonBadge.style.background = 'rgba(255, 165, 0, 0.9)';
+          classroom_label.textContent = 'No configurado';
+          classroom_badge.classList.add('visible');
+          classroom_badge.style.background = 'rgba(255, 165, 0, 0.9)';
         }
       } catch (error) {
         console.error('Error cargando salón actual:', error);
-        salonText.textContent = 'Error';
-        salonBadge.style.background = 'rgba(255, 0, 0, 0.9)';
+        classroom_label.textContent = 'Error';
+        classroom_badge.style.background = 'rgba(255, 0, 0, 0.9)';
       }
     }
 
     // CARGAR LISTA DE SALONES
-    async function cargarListaSalones() {
+    async function load_classrooms() {
       try {
-        const response = await fetch('/api/salones');
+        const response = await fetch('/api/classrooms');
         const data = await response.json();
 
-        if (data.success && data.salones) {
-          salonesDisponibles = data.salones;
+        if (data.success && data.classrooms) {
+          available_classrooms = data.classrooms;
 
-          modalSalonSelect.innerHTML = '<option value="">-- Selecciona un salón --</option>';
+          classroom_select.innerHTML = '<option value="">-- Selecciona un salón --</option>';
 
-          data.salones.forEach(salon => {
+          data.classrooms.forEach(classroom_name => {
             const option = document.createElement('option');
-            option.value = salon;
-            option.textContent = salon;
-            modalSalonSelect.appendChild(option);
+            option.value = classroom_name;
+            option.textContent = classroom_name;
+            classroom_select.appendChild(option);
           });
 
-          console.log(`✔ ${data.salones.length} salones cargados`);
+          console.log(`✔ ${data.classrooms.length} salones cargados`);
         }
       } catch (error) {
         console.error('Error cargando salones:', error);
-        modalSalonSelect.innerHTML = '<option value="">Error al cargar salones</option>';
+        classroom_select.innerHTML = '<option value="">Error al cargar salones</option>';
       }
     }
 
     // ABRIR MODAL
-    configButton.addEventListener('click', () => {
-      configModal.classList.add('active');
-      authStep.style.display = 'block';
-      salonStep.style.display = 'none';
-      modalAdminEmail.value = '';
-      modalAdminPassword.value = '';
-      modalError.style.display = 'none';
-      isAdmin = false;
+    config_button.addEventListener('click', () => {
+      config_modal.classList.add('active');
+      auth_step.style.display = 'block';
+      classroom_step.style.display = 'none';
+      admin_email_input.value = '';
+      admin_password_input.value = '';
+      modal_error.style.display = 'none';
+      is_admin = false;
     });
 
     // ⬇️ EVENTO BOTÓN CERRAR (X)
-    btnCerrarModal.addEventListener('click', () => {
-      configModal.classList.remove('active');
+    close_modal_button.addEventListener('click', () => {
+      config_modal.classList.remove('active');
     });
 
     // VERIFICAR ADMIN
-    async function verificarAdminModal() {
-      const email = modalAdminEmail.value.trim();
-      const password = modalAdminPassword.value.trim();
+    async function check_admin_modal() {
+      const email = admin_email_input.value.trim();
+      const password = admin_password_input.value.trim();
 
       if (!email || !password) {
-        modalError.textContent = 'Por favor ingresa correo y contraseña';
-        modalError.style.display = 'block';
+        modal_error.textContent = 'Por favor ingresa correo y contraseña';
+        modal_error.style.display = 'block';
         return;
       }
 
-      btnModalVerificar.disabled = true;
-      btnModalVerificar.textContent = 'Verificando...';
-      modalError.style.display = 'none';
+      check_admin_button.disabled = true;
+      check_admin_button.textContent = 'Verificando...';
+      modal_error.style.display = 'none';
 
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -286,72 +286,72 @@
         const idTokenResult = await user.getIdTokenResult();
 
         if (idTokenResult.claims && idTokenResult.claims.admin === true) {
-          isAdmin = true;
+          is_admin = true;
 
-          if (salonesDisponibles.length === 0) {
-            await cargarListaSalones();
+          if (available_classrooms.length === 0) {
+            await load_classrooms();
           }
 
-          authStep.style.display = 'none';
-          salonStep.style.display = 'block';
+          auth_step.style.display = 'none';
+          classroom_step.style.display = 'block';
         } else {
           throw new Error('No tienes permisos de administrador');
         }
       } catch (error) {
-        let mensaje = '';
-        if (error.code === 'auth/user-not-found') mensaje = 'Usuario no encontrado';
-        else if (error.code === 'auth/wrong-password') mensaje = 'Contraseña incorrecta';
-        else if (error.code === 'auth/invalid-email') mensaje = 'Correo inválido';
-        else mensaje = error.message;
+        let error_text = '';
+        if (error.code === 'auth/user-not-found') error_text = 'Usuario no encontrado';
+        else if (error.code === 'auth/wrong-password') error_text = 'Contraseña incorrecta';
+        else if (error.code === 'auth/invalid-email') error_text = 'Correo inválido';
+        else error_text = error.message;
 
-        modalError.textContent = mensaje;
-        modalError.style.display = 'block';
-        btnModalVerificar.disabled = false;
-        btnModalVerificar.textContent = 'Verificar';
+        modal_error.textContent = error_text;
+        modal_error.style.display = 'block';
+        check_admin_button.disabled = false;
+        check_admin_button.textContent = 'Verificar';
       }
     }
 
-    btnModalVerificar.addEventListener('click', verificarAdminModal);
+    check_admin_button.addEventListener('click', check_admin_modal);
 
-    modalAdminPassword.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') verificarAdminModal();
+    admin_password_input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') check_admin_modal();
     });
 
     // CONFIRMAR CAMBIO
-    btnModalConfirmar.addEventListener('click', async () => {
-      if (!isAdmin) {
+    confirm_classroom_button.addEventListener('click', async () => {
+      if (!is_admin) {
         alert('Error de autenticación');
-        configModal.classList.remove('active');
+        config_modal.classList.remove('active');
         return;
       }
 
-      const nuevoSalon = modalSalonSelect.value;
-      if (!nuevoSalon) {
+      const selected_classroom = classroom_select.value;
+      if (!selected_classroom) {
         alert('Por favor selecciona un salón');
         return;
       }
 
-      btnModalConfirmar.disabled = true;
-      btnModalConfirmar.textContent = 'Configurando...';
+      confirm_classroom_button.disabled = true;
+      confirm_classroom_button.textContent = 'Configurando...';
 
       try {
-        const response = await fetch('/api/configurar_salon', {
+        const response = await fetch('/api/set_classroom', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ salon: nuevoSalon })
+          body: JSON.stringify({ classroom: selected_classroom })
         });
 
         const data = await response.json();
         if (!data.success) throw new Error(data.error || 'Error al configurar salón');
 
-        await fetch('/api/limpiar_registros', {
+        await fetch('/api/clear_recognitions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
 
-        btnModalConfirmar.textContent = '¡Configurado!';
-        btnModalConfirmar.style.background = '#275317';
-        btnModalConfirmar.style.color = '#b6b6b6';
+        confirm_classroom_button.textContent = '¡Configurado!';
+        confirm_classroom_button.style.background = '#275317';
+        confirm_classroom_button.style.color = '#b6b6b6';
 
         setTimeout(() => {
           window.location.href = '/';
@@ -359,18 +359,18 @@
 
       } catch (error) {
         alert('Error: ' + error.message);
-        btnModalConfirmar.disabled = false;
-        btnModalConfirmar.textContent = 'Confirmar';
+        confirm_classroom_button.disabled = false;
+        confirm_classroom_button.textContent = 'Confirmar';
       }
     });
 
-    btnModalCancelar.addEventListener('click', () => {
-      configModal.classList.remove('active');
+    cancel_classroom_button.addEventListener('click', () => {
+      config_modal.classList.remove('active');
     });
 
-    configModal.addEventListener('click', (e) => {
-      if (e.target === configModal) {
-        configModal.classList.remove('active');
+    config_modal.addEventListener('click', (e) => {
+      if (e.target === config_modal) {
+        config_modal.classList.remove('active');
       }
     });
 
@@ -382,36 +382,36 @@
     // TÉRMINOS Y CONDICIONES
     // ============================================
 
-    const terminosOverlay = document.getElementById('terminos-overlay');
-    const aceptarTerminosCheckbox = document.getElementById('aceptar-terminos');
-    const btnTerminosAceptar = document.getElementById('btn-terminos-aceptar');
-    const btnTerminosCancelar = document.getElementById('btn-terminos-cancelar');
+    const terms_overlay = document.getElementById('terminos-overlay');
+    const accept_terms_checkbox = document.getElementById('aceptar-terminos');
+    const accept_terms_button = document.getElementById('btn-terminos-aceptar');
+    const cancel_terms_button = document.getElementById('btn-terminos-cancelar');
 
     // Mostrar popup INMEDIATAMENTE (sin esperar al evento load)
-    terminosAceptados = false;
-    aceptarTerminosCheckbox.checked = false;
-    btnTerminosAceptar.disabled = true;
-    terminosOverlay.classList.add('active');
+    terms_accepted = false;
+    accept_terms_checkbox.checked = false;
+    accept_terms_button.disabled = true;
+    terms_overlay.classList.add('active');
 
     // Habilitar botón solo si se acepta el checkbox
-    aceptarTerminosCheckbox.addEventListener('change', (e) => {
-      btnTerminosAceptar.disabled = !e.target.checked;
+    accept_terms_checkbox.addEventListener('change', (e) => {
+      accept_terms_button.disabled = !e.target.checked;
     });
 
     // Aceptar términos
-    btnTerminosAceptar.addEventListener('click', () => {
-      terminosAceptados = true;
-      terminosOverlay.classList.remove('active');
+    accept_terms_button.addEventListener('click', () => {
+      terms_accepted = true;
+      terms_overlay.classList.remove('active');
       console.log('✅ Términos y condiciones aceptados');
     });
 
     // Cancelar - redirigir al inicio
-    btnTerminosCancelar.addEventListener('click', () => {
+    cancel_terms_button.addEventListener('click', () => {
       window.location.href = '/';
     });
 
     // INICIAR CÁMARA
-    async function iniciarCamara() {
+    async function start_camera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -427,19 +427,19 @@
 
         console.log('✔ Cámara iniciada:', canvas.width, 'x', canvas.height);
 
-        iniciarDeteccionRostros();
+        start_face_detection();
 
       } catch (err) {
-        resultado.textContent = "❌ No se pudo acceder a la cámara";
-        resultado.style.color = 'red';
+        result_label.textContent = "❌ No se pudo acceder a la cámara";
+        result_label.style.color = 'red';
         console.error("Error cámara:", err);
       }
     }
 
     // DETECCIÓN DE ROSTROS
-    function iniciarDeteccionRostros() {
-      deteccionInterval = setInterval(async () => {
-        if (capturando) return;
+    function start_face_detection() {
+      detection_interval = setInterval(async () => {
+        if (capturing) return;
 
         const tmp = document.createElement('canvas');
         tmp.width = video.videoWidth;
@@ -449,7 +449,7 @@
         const imgBase64 = tmp.toDataURL('image/jpeg');
 
         try {
-          const res = await fetch('/detectar_rostro', {
+          const res = await fetch('/detect_face', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ image: imgBase64 })
@@ -457,8 +457,8 @@
 
           const data = await res.json();
 
-          if (data.rostro_detectado && data.box) {
-            dibujarRostro(data.box, 'red', 'Posiciona tu rostro');
+          if (data.face_detected && data.box) {
+            draw_face(data.box, 'red', 'Posiciona tu rostro');
           } else {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
           }
@@ -468,7 +468,7 @@
       }, 500);
     }
 
-    function dibujarRostro(box, color, texto) {
+    function draw_face(box, color, label_text) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       const [x, y, w, h] = box;
@@ -479,43 +479,43 @@
       ctx.strokeRect(mirroredX, y, w, h);
 
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      const textWidth = ctx.measureText(texto).width;
+      const textWidth = ctx.measureText(label_text).width;
       ctx.fillRect(mirroredX, y - 35, textWidth + 20, 30);
 
       ctx.fillStyle = color;
       ctx.font = 'bold 20px Arial';
-      ctx.fillText(texto, mirroredX + 10, y - 12);
+      ctx.fillText(label_text, mirroredX + 10, y - 12);
     }
 
     // PROCESO DE CAPTURA
-    async function iniciarCaptura() {
+    async function start_capture() {
       // Verificar que se hayan aceptado los términos
-      if (!terminosAceptados) {
+      if (!terms_accepted) {
         alert('⚠️ Debes aceptar los términos y condiciones para registrarte');
-        terminosOverlay.classList.add('active');
+        terms_overlay.classList.add('active');
         return;
       }
-      const nombre = nombreInput.value.trim();
+      const person_name = name_input.value.trim();
 
-      if (!nombre) {
+      if (!person_name) {
         alert('❌ Por favor ingresa tu nombre');
         return;
       }
 
-      if (!confirm(`¿Iniciar captura para "${nombre}"?\n\nAsegúrate de estar frente a la cámara.`)) {
+      if (!confirm(`¿Iniciar captura para "${person_name}"?\n\nAsegúrate de estar frente a la cámara.`)) {
         return;
       }
 
-      capturando = true;
-      btnCapturar.disabled = true;
-      nombreInput.disabled = true;
-      progresoContainer.style.display = 'block';
-      resultado.textContent = '';
+      capturing = true;
+      capture_button.disabled = true;
+      name_input.disabled = true;
+      progress_container.style.display = 'block';
+      result_label.textContent = '';
 
-      const totalFotos = 100;
-      const intervaloCaptura = 100;
-      let fotosCapturadas = 0;
-      let fotosGuardadas = 0;
+      const photo_count = 100;
+      const capture_interval_ms = 100;
+      let photos_taken = 0;
+      let photos_saved = 0;
 
       const tmp = document.createElement('canvas');
       tmp.width = video.videoWidth;
@@ -524,57 +524,57 @@
 
       console.log('🎬 Iniciando captura de 100 fotos...');
 
-      for (let i = 0; i < totalFotos; i++) {
+      for (let i = 0; i < photo_count; i++) {
         tmpCtx.drawImage(video, 0, 0, tmp.width, tmp.height);
-        const foto = tmp.toDataURL('image/jpeg', 0.8);
+        const photo = tmp.toDataURL('image/jpeg', 0.8);
 
         try {
-          const res = await fetch('/guardar_foto', {
+          const res = await fetch('/save_photo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              estudiante: nombre,
-              foto: foto
+              student: person_name,
+              photo: photo
             })
           });
 
           const data = await res.json();
 
           if (data.ok) {
-            fotosGuardadas++;
+            photos_saved++;
           }
         } catch (e) {
           console.error('Error guardando foto', i, ':', e);
         }
 
-        fotosCapturadas++;
+        photos_taken++;
 
-        const porcentaje = Math.round((fotosCapturadas / totalFotos) * 100);
-        progresoFill.style.width = porcentaje + '%';
-        progresoFill.textContent = porcentaje + '%';
-        progresoTexto.textContent = `Capturando foto ${fotosCapturadas} de ${totalFotos} (${fotosGuardadas} guardadas)`;
+        const percent = Math.round((photos_taken / photo_count) * 100);
+        progress_fill.style.width = percent + '%';
+        progress_fill.textContent = percent + '%';
+        progress_text.textContent = `Capturando foto ${photos_taken} de ${photo_count} (${photos_saved} guardadas)`;
 
-        dibujarRostro([0, 0, tmp.width, tmp.height], '#00ff00', `Capturando... ${fotosCapturadas}/${totalFotos}`);
+        draw_face([0, 0, tmp.width, tmp.height], '#00ff00', `Capturando... ${photos_taken}/${photo_count}`);
 
-        await new Promise(resolve => setTimeout(resolve, intervaloCaptura));
+        await new Promise(resolve => setTimeout(resolve, capture_interval_ms));
       }
 
-      console.log(`✔ Captura completada: ${fotosGuardadas}/${totalFotos} fotos guardadas`);
+      console.log(`✔ Captura completada: ${photos_saved}/${photo_count} fotos guardadas`);
 
-      progresoTexto.textContent = 'Entrenando modelo de reconocimiento...';
+      progress_text.textContent = 'Entrenando modelo de reconocimiento...';
 
       try {
-        const res = await fetch('/entrenar', {
+        const res = await fetch('/train', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ estudiante: nombre })
+          body: JSON.stringify({ student: person_name })
         });
 
         const data = await res.json();
 
         if (data.success) {
-          progresoTexto.textContent = '¡Registro completado exitosamente!';
-          progresoTexto.style.color = '#0D3512';
+          progress_text.textContent = '¡Registro completado exitosamente!';
+          progress_text.style.color = '#0D3512';
 
           setTimeout(() => {
             window.location.href = '/';
@@ -584,35 +584,35 @@
         }
       } catch (e) {
         console.error('Error en entrenamiento:', e);
-        progresoTexto.textContent = 'Error en el entrenamiento';
-        progresoTexto.style.color = '#771C07';
-        resultado.textContent = 'Error: ' + e.message;
-        resultado.style.color = '771C07';
+        progress_text.textContent = 'Error en el entrenamiento';
+        progress_text.style.color = '#771C07';
+        result_label.textContent = 'Error: ' + e.message;
+        result_label.style.color = '771C07';
 
-        btnCapturar.disabled = false;
-        nombreInput.disabled = false;
-        capturando = false;
+        capture_button.disabled = false;
+        name_input.disabled = false;
+        capturing = false;
       }
     }
 
-    btnCapturar.addEventListener('click', iniciarCaptura);
+    capture_button.addEventListener('click', start_capture);
 
-    nombreInput.addEventListener('keypress', (e) => {
+    name_input.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
-        iniciarCaptura();
+        start_capture();
       }
     });
 
     // ============================================
     // INICIALIZACIÓN
     // ============================================
-    cargarSalonActual();
-    iniciarCamara();
+    load_current_classroom();
+    start_camera();
     console.log('🚀 Página de registro cargada');
 
     window.addEventListener('beforeunload', () => {
-      if (deteccionInterval) {
-        clearInterval(deteccionInterval);
+      if (detection_interval) {
+        clearInterval(detection_interval);
       }
     });
   </script>
