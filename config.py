@@ -1,5 +1,6 @@
 """Turn `.env` text into the numbers the kiosk imports. python-dotenv reads the file."""
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -27,6 +28,13 @@ def _flag(name):
     return _text(name).lower() in ("1", "true", "si", "sí", "yes")
 
 
+def _optional(name):
+    return os.environ.get(name, "").strip()
+
+
+_CLOCK = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
 COSINE_THRESHOLD = _float("COSINE_THRESHOLD")
 AMBIGUITY_MARGIN = _float("AMBIGUITY_MARGIN")
 FACE_SIZE = _int("FACE_SIZE")
@@ -38,9 +46,30 @@ ON_TIME_MARGIN_MINUTES = _int("ON_TIME_MARGIN_MINUTES")
 COUNTDOWN_WINDOW_MINUTES = _int("COUNTDOWN_WINDOW_MINUTES")
 SCHEDULER_LOOKAHEAD_MINUTES = _int("SCHEDULER_LOOKAHEAD_MINUTES")
 DEMO_MODE = _flag("DEMO_MODE")
-DEMO_COURSE_ID = _text("DEMO_COURSE_ID")
-DEMO_ID_MIN = _int("DEMO_ID_MIN")
-DEMO_ID_MAX = _int("DEMO_ID_MAX")
+DEMO_COURSE_ID = _optional("DEMO_COURSE_ID")
+DEMO_COURSE_NAME = _optional("DEMO_COURSE_NAME")
+DEMO_INIT_TIME = _optional("DEMO_INIT_TIME")
+DEMO_END_TIME = _optional("DEMO_END_TIME")
+if DEMO_MODE:
+    _missing_demo = [
+        name
+        for name, value in (
+            ("DEMO_COURSE_ID", DEMO_COURSE_ID),
+            ("DEMO_COURSE_NAME", DEMO_COURSE_NAME),
+            ("DEMO_INIT_TIME", DEMO_INIT_TIME),
+            ("DEMO_END_TIME", DEMO_END_TIME),
+        )
+        if not value
+    ]
+    if _missing_demo:
+        raise RuntimeError(
+            "DEMO_MODE está en true y falta "
+            + ", ".join(_missing_demo)
+        )
+    if not _CLOCK.match(DEMO_INIT_TIME) or not _CLOCK.match(DEMO_END_TIME):
+        raise RuntimeError("DEMO_INIT_TIME y DEMO_END_TIME tienen que ser HH:MM")
+    if DEMO_END_TIME <= DEMO_INIT_TIME:
+        raise RuntimeError("DEMO_END_TIME tiene que ser posterior a DEMO_INIT_TIME")
 
 BFF_HOST = _text("BFF_HOST")
 BFF_PORT = _int("BFF_PORT")

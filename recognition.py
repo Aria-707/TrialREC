@@ -16,6 +16,8 @@ from config import RECOGNITION_HOST, RECOGNITION_PORT
 if __name__ == "__main__":
     serving = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
     if serving:
+        import event_mode
+        event_mode.wipe_event_data()
         face.refresh_remote_gallery()
 
     print("\n" + "=" * 60)
@@ -44,6 +46,8 @@ if __name__ == "__main__":
 
     if serving:
         consent.sweep_and_rebuild()
+        import event_mode
+        event_mode.boot_from_env(saved_classroom)
         consent.start_listener()
         schedule.start_schedule_watch()
 

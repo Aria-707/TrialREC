@@ -26,7 +26,7 @@
       <div id="auth-step">
         <div class="config-modal-header">
           <h2>Autenticación Requerida</h2>
-          <p style="color: #7F7F7F; margin: 0;">Solo administradores pueden cambiar el salón</p>
+          <p style="color: #7F7F7F; margin: 0;">Solo administradores pueden cambiar la configuración</p>
         </div>
 
         <div class="config-modal-body">
@@ -42,26 +42,60 @@
         </div>
       </div>
 
-      <!-- PASO 2: SELECCIÓN DE SALÓN -->
-      <div id="salon-step" style="display: none;">
-        <div class="config-modal-header">
-          <h2>Cambiar Salón</h2>
-          <p style="color: #7F7F7F; margin: 0;">Selecciona el nuevo salón</p>
+      <div id="admin-step" style="display: none;">
+        <div class="config-tabs">
+          <button type="button" class="config-tab active" id="tab-salon">Cambiar salón</button>
+          <button type="button" class="config-tab" id="tab-modo">Cambiar modo</button>
         </div>
 
-        <div class="config-modal-body">
-          <select id="modal-salon-select">
-            <option value="" style="color: #7F7F7F;">-- Selecciona un salón --</option>
-          </select>
+        <div id="salon-step">
+          <div class="config-modal-header">
+            <h2>Cambiar salón</h2>
+            <p style="color: #7F7F7F; margin: 0;">Selecciona el nuevo salón</p>
+          </div>
+
+          <div class="config-modal-body">
+            <select id="modal-salon-select">
+              <option value="" style="color: #7F7F7F;">-- Selecciona un salón --</option>
+            </select>
+          </div>
+
+          <div class="config-modal-footer">
+            <button class="btn-modal-cancelar" id="btn-modal-cancelar">Cancelar</button>
+            <button class="btn-modal-confirmar" id="btn-modal-confirmar">Confirmar</button>
+          </div>
         </div>
 
+        <div id="modo-step" style="display: none;">
+          <div class="config-modal-header">
+            <h2>Cambiar modo</h2>
+          </div>
+          <div class="config-modal-body">
+            <label class="interruptor" for="modo-evento">
+              <span>Modo evento</span>
+              <input type="checkbox" id="modo-evento">
+            </label>
+            <p class="modo-ayuda">Al activar se toman la fecha de hoy y el salón actual para crear el evento.</p>
+            <label class="modo-etiqueta" for="modo-nombre">Nombre</label>
+            <input type="text" id="modo-nombre" placeholder="Nombre del evento" autocomplete="off" disabled>
+            <label class="modo-etiqueta" for="modo-inicio">Hora de inicio</label>
+            <input type="time" id="modo-inicio" disabled>
+            <label class="modo-etiqueta" for="modo-fin">Hora final</label>
+            <input type="time" id="modo-fin" disabled>
+            <div id="modo-error" class="modal-error"></div>
+          </div>
+          <div class="config-modal-footer">
+            <button type="button" class="btn-modal-cancelar" id="btn-modo-cancelar">Cancelar</button>
+            <button type="button" class="btn-modal-confirmar" id="btn-modo-confirmar">Confirmar</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="aviso-evento" class="aviso-evento">
+        <button type="button" class="btn-cerrar-modal" id="aviso-evento-x" aria-label="Cerrar">✖</button>
+        <p>Esta funcionalidad se usa principalmente para realizar demostraciones y pruebas, actualmente, por lo que te recordamos que todas las personas y datos biométricos nuevos que sean registrados durante el Modo Evento serán eliminados en el próximo reinicio del sistema; lo único que se mantendrá es el registro de asistencias generado.</p>
         <div class="config-modal-footer">
-          <button class="btn-modal-cancelar" id="btn-modal-cancelar">
-            Cancelar
-          </button>
-          <button class="btn-modal-confirmar" id="btn-modal-confirmar">
-            Confirmar
-          </button>
+          <button type="button" class="btn-modal-confirmar" id="aviso-evento-cerrar">Entendido</button>
         </div>
       </div>
     </div>
@@ -112,7 +146,7 @@
 
   <div id="confirma-overlay" class="terminos-overlay">
     <div class="terminos-popup">
-      <h2>Confirma tu nombre</h2>
+      <h2 id="confirma-titulo">Confirma tu nombre</h2>
       <p id="confirma-nombre" class="aviso-texto"></p>
       <div class="terminos-botones">
         <button type="button" class="btn-terminos-cancelar" id="btn-nombre-no">No</button>
@@ -170,6 +204,7 @@
     <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
   </div>
 
+  <script src="{{ url_for('static', filename='event_panel.js') }}"></script>
   <script type="module">
     import { init_firebase } from "/static/firebaseCred.js";
     import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
@@ -272,7 +307,8 @@
     config_button.addEventListener('click', () => {
       config_modal.classList.add('active');
       auth_step.style.display = 'block';
-      classroom_step.style.display = 'none';
+      document.getElementById('admin-step').style.display = 'none';
+      document.getElementById('aviso-evento').style.display = 'none';
       admin_email_input.value = '';
       admin_password_input.value = '';
       modal_error.style.display = 'none';
@@ -312,7 +348,8 @@
           }
 
           auth_step.style.display = 'none';
-          classroom_step.style.display = 'block';
+          document.getElementById('admin-step').style.display = 'block';
+          window.show_event_salon_tab();
         } else {
           throw new Error('No tienes permisos de administrador');
         }
@@ -401,17 +438,24 @@
     // TÉRMINOS Y CONDICIONES
     // ============================================
 
-    const demo_mode = {{ 'true' if demo_mode else 'false' }};
+    let event_mode = window.eventModeEnabled === true;
+    let pending_new_person = false;
     const demo_name_input = document.getElementById('nombre-prueba');
-    if (demo_mode) {
-      demo_name_input.style.display = 'block';
+    function apply_event_mode(enabled) {
+      event_mode = enabled === true;
+      demo_name_input.style.display = event_mode ? 'block' : 'none';
     }
+    apply_event_mode(event_mode);
+    window.addEventListener('event-mode', (event) => {
+      apply_event_mode(event.detail && event.detail.enabled);
+    });
 
     const terms_overlay = document.getElementById('terminos-overlay');
     const accept_terms_checkbox = document.getElementById('aceptar-terminos');
     const accept_terms_button = document.getElementById('btn-terminos-aceptar');
     const cancel_terms_button = document.getElementById('btn-terminos-cancelar');
     const confirm_overlay = document.getElementById('confirma-overlay');
+    const confirm_title = document.getElementById('confirma-titulo');
     const confirm_name = document.getElementById('confirma-nombre');
     const confirm_yes = document.getElementById('btn-nombre-si');
     const confirm_no = document.getElementById('btn-nombre-no');
@@ -423,9 +467,14 @@
     const STUDENT_MESSAGE = 'No se encuentra un estudiante asociado a esta cédula. Si esto es un error, ponte en contacto con un administrador, y pídele al profesor que registre tu asistencia manualmente por esta ocasión.';
     const CONSENT_MESSAGE = 'Entendido, al no dar tu consentimiento, no tomaré tus datos. Recuerda hablar con tu profesor para que tu asistencia se tome de forma manual.';
     const ADMIN_MESSAGE = 'Un administrador tiene que registrarte antes de este alta. Pídele al profesor que tome tu asistencia de forma manual por esta ocasión.';
+    const EVENT_BIO_MESSAGE = 'Tu usuario ya existe y tiene datos biométricos, serás registrado con dichos datos al evento. ¿Deseas tomar nuevos datos biométricos para este evento?';
+    const EVENT_PERMISSION_MESSAGE = 'Tu usuario no autorizó permisos para el reconocimiento facial. En este momento, este dispositivo se encuentra en modo evento, por lo que, para proteger tus datos, se mantendrán los permisos actuales. Si quieres autorizar permisos para reconocimiento facial, puedes hacerlo desde el portal web iniciando sesión o en tu próxima clase en un dispositivo que no esté en modo evento.';
+    const EVENT_PORTAL_MESSAGE = 'Entendido, no se tomarán tus datos para el reconocimiento facial, te gustaría que se creara un usuario para probar el portal web?';
+    const EVENT_OTHER_ID_MESSAGE = 'Digita una cédula distinta para registrarte en el sistema.';
 
     let national_id = '';
     let notice_timer = null;
+    let notice_leaves = true;
 
     terms_accepted = false;
     accept_terms_checkbox.checked = false;
@@ -435,15 +484,25 @@
       accept_terms_button.disabled = !e.target.checked;
     });
 
-    function show_notice(text) {
+    function show_notice(text, leave = true) {
+      notice_leaves = leave;
       notice_text.textContent = text;
       notice_overlay.classList.add('active');
       clearTimeout(notice_timer);
-      notice_timer = setTimeout(close_notice, 20000);
+      if (leave) {
+        notice_timer = setTimeout(close_notice, 20000);
+      }
     }
 
     function close_notice() {
       clearTimeout(notice_timer);
+      if (!notice_leaves) {
+        notice_overlay.classList.remove('active');
+        capture_button.disabled = false;
+        name_input.value = '';
+        name_input.focus();
+        return;
+      }
       window.location.href = '/';
     }
 
@@ -456,15 +515,81 @@
       terms_overlay.classList.add('active');
     }
 
-    accept_terms_button.addEventListener('click', () => {
+    function ask_choice(title, text, on_yes, on_no) {
+      confirm_title.textContent = title;
+      confirm_name.textContent = text;
+      confirm_overlay.classList.add('active');
+      confirm_yes.onclick = () => {
+        confirm_overlay.classList.remove('active');
+        on_yes();
+      };
+      confirm_no.onclick = () => {
+        confirm_overlay.classList.remove('active');
+        on_no();
+      };
+    }
+
+    async function post_event(path, body) {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (!response.ok || data.ok === false) {
+        result_label.textContent = data.error || 'No se pudo guardar.';
+        result_label.style.color = '#771C07';
+        capture_button.disabled = false;
+        return false;
+      }
+      return true;
+    }
+
+    function create_event_person(portal) {
+      return post_event('/api/event_person', {
+        national_id: national_id,
+        name: demo_name_input.value.trim(),
+        portal: portal,
+      });
+    }
+
+    function link_event_person(person_name) {
+      return post_event('/api/event_link', {
+        national_id: national_id,
+        name: person_name || '',
+      });
+    }
+
+    accept_terms_button.addEventListener('click', async () => {
       terms_accepted = true;
       terms_overlay.classList.remove('active');
+      if (pending_new_person) {
+        const created = await create_event_person(false);
+        if (!created) {
+          return;
+        }
+        pending_new_person = false;
+      }
       start_capture();
     });
 
     cancel_terms_button.addEventListener('click', () => {
       terms_overlay.classList.remove('active');
-      show_notice(CONSENT_MESSAGE);
+      if (!(event_mode && pending_new_person)) {
+        show_notice(CONSENT_MESSAGE);
+        return;
+      }
+      ask_choice('Usuario del portal', EVENT_PORTAL_MESSAGE, async () => {
+        const created = await create_event_person(true);
+        if (!created) {
+          return;
+        }
+        pending_new_person = false;
+        window.location.href = '/';
+      }, () => {
+        pending_new_person = false;
+        window.location.href = '/';
+      });
     });
 
     // INICIAR CÁMARA
@@ -544,6 +669,38 @@
       ctx.fillText(label_text, mirroredX + 10, y - 12);
     }
 
+    function confirm_existing_student(data) {
+      if (!event_mode) {
+        if (!data.legal_row) {
+          show_notice(ADMIN_MESSAGE);
+        } else if (data.biometrico === true) {
+          terms_accepted = true;
+          start_capture();
+        } else {
+          show_terms();
+        }
+        return;
+      }
+      if (!data.legal_row) {
+        show_notice(ADMIN_MESSAGE);
+        return;
+      }
+      if (data.biometrico !== true) {
+        show_notice(EVENT_PERMISSION_MESSAGE);
+        return;
+      }
+      ask_choice('Datos biométricos', EVENT_BIO_MESSAGE, async () => {
+        if (await link_event_person(data.name)) {
+          terms_accepted = true;
+          start_capture();
+        }
+      }, async () => {
+        if (await link_event_person(data.name)) {
+          window.location.href = '/';
+        }
+      });
+    }
+
     async function continue_enrollment() {
       national_id = name_input.value.trim();
       if (!/^\d+$/.test(national_id)) {
@@ -561,36 +718,39 @@
         });
         const data = await response.json();
 
-        if (data.status === 'demo_unavailable') {
-          show_notice(data.message);
-          return;
-        }
         if (data.status === 'missing') {
-          show_notice(COMMUNITY_MESSAGE);
+          if (!event_mode) {
+            show_notice(COMMUNITY_MESSAGE);
+            return;
+          }
+          if (!demo_name_input.value.trim()) {
+            result_label.textContent = 'Ingresa el nombre completo.';
+            result_label.style.color = '#771C07';
+            capture_button.disabled = false;
+            return;
+          }
+          pending_new_person = true;
+          show_terms();
           return;
         }
         if (data.status !== 'student') {
-          show_notice(STUDENT_MESSAGE);
+          if (!event_mode) {
+            show_notice(STUDENT_MESSAGE);
+            return;
+          }
+          ask_choice('Confirma tu nombre', data.name || '', () => {
+            show_notice(STUDENT_MESSAGE);
+          }, () => {
+            show_notice(EVENT_OTHER_ID_MESSAGE, false);
+          });
           return;
         }
 
-        confirm_name.textContent = data.name || '';
-        confirm_overlay.classList.add('active');
-        confirm_yes.onclick = () => {
-          confirm_overlay.classList.remove('active');
-          if (!data.legal_row) {
-            show_notice(ADMIN_MESSAGE);
-          } else if (data.biometrico === true) {
-            terms_accepted = true;
-            start_capture();
-          } else {
-            show_terms();
-          }
-        };
-        confirm_no.onclick = () => {
-          confirm_overlay.classList.remove('active');
-          show_notice(STUDENT_MESSAGE);
-        };
+        ask_choice('Confirma tu nombre', data.name || '', () => {
+          confirm_existing_student(data);
+        }, () => {
+          show_notice(event_mode ? EVENT_OTHER_ID_MESSAGE : STUDENT_MESSAGE, !event_mode);
+        });
       } catch (error) {
         console.error('Error consultando la cédula:', error);
         result_label.textContent = 'No se pudo consultar la cédula.';

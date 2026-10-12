@@ -1,4 +1,5 @@
 """Class schedule, attendance window, and classroom list."""
+import re
 from datetime import datetime, timedelta
 
 from config import (
@@ -26,6 +27,7 @@ SPANISH_TO_ENGLISH_WEEKDAYS = {
 ENGLISH_TO_SPANISH_WEEKDAYS = {
     english: spanish for spanish, english in SPANISH_TO_ENGLISH_WEEKDAYS.items()
 }
+_CLOCK_TEXT = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 # Filled on the first read for a classroom, and again when the scheduler confirms the timetable.
 _slot_cache = {}
 
@@ -164,6 +166,9 @@ def _read_classroom_slots(required_classroom, teacher_id=None):
             if teacher_id and course_data.get("profesorID") != teacher_id:
                 continue
             course_name = course_data.get("nameCourse", "Sin nombre")
+            event_slot = _event_slot(course_data, course_id, course_name, required_classroom)
+            if event_slot:
+                slots.append(event_slot)
             try:
                 groups = db.collection("courses").document(course_id).collection("groups").get()
                 if groups:
@@ -198,6 +203,107 @@ def _stored_slot(raw, course_id, course_name, required_classroom):
     }
 
 
+def _event_slot(course_data, course_id, course_name, required_classroom):
+    """One-day event. A weekly schedule is a different slot."""
+    raw = course_data.get("event")
+    if not isinstance(raw, dict):
+        return None
+    classroom_name = (raw.get("classroom") or "").strip()
+    if classroom_name != required_classroom:
+        return None
+    date = str(raw.get("date") or "").strip()
+    ini_time = str(raw.get("iniTime") or "").strip()
+    end_time = str(raw.get("endTime") or "").strip()
+    if not date or not valid_event_clocks(ini_time, end_time):
+        return None
+    return {
+        "course_id": course_id,
+        "course_name": course_name,
+        "day": "",
+        "iniTime": ini_time,
+        "endTime": end_time,
+        "classroom": classroom_name,
+        "event": True,
+        "date": date,
+    }
+
+
+def valid_event_clocks(ini_time, end_time):
+    """True when both clocks are HH:MM and the end is later the same day."""
+    if not _CLOCK_TEXT.match(str(ini_time or "")) or not _CLOCK_TEXT.match(str(end_time or "")):
+        return False
+    return _minutes(end_time) > _minutes(ini_time)
+
+
+def _minutes(text):
+    hour, minute = (int(part) for part in str(text).split(":"))
+    return hour * 60 + minute
+
+
+def event_window_matches(slot, today, current_time, required_classroom):
+    """Start time when this event is open today. The window ends at endTime."""
+    if not slot.get("event"):
+        return None
+    if (slot.get("classroom") or "").strip() != required_classroom:
+        return None
+    if slot.get("date") != today:
+        return None
+    try:
+        start = _minutes(slot.get("iniTime", "00:00"))
+        end = _minutes(slot.get("endTime", "00:00"))
+        current = _minutes(current_time)
+    except (TypeError, ValueError):
+        return None
+    if start - MINUTES_BEFORE_START <= current <= end:
+        return slot.get("iniTime")
+    return None
+
+
+def event_close_for(required_classroom, course_id, today):
+    """endTime when the open course is today's event. None for a weekly class."""
+    for slot in load_classroom_slots(required_classroom):
+        if slot.get("event") and slot.get("course_id") == course_id and slot.get("date") == today:
+            return slot.get("endTime")
+    return None
+
+
+def _event_start(slot, moment):
+    """Today's event start, when that minute is still ahead."""
+    try:
+        day = datetime.strptime(slot.get("date", ""), "%Y-%m-%d")
+        hour, minute = (int(part) for part in str(slot.get("iniTime", "")).split(":"))
+    except (TypeError, ValueError):
+        return None
+    candidate = day.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if candidate < moment.replace(second=0, microsecond=0):
+        return None
+    return candidate
+
+
+def _event_countdown(slot, current_time, required_classroom):
+    """Countdown payload when the event opens within the next few minutes."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    if slot.get("date") != today:
+        return None
+    if event_window_matches(slot, today, current_time, required_classroom):
+        return None
+    try:
+        start = _minutes(slot.get("iniTime", "00:00"))
+        current = _minutes(current_time)
+    except (TypeError, ValueError):
+        return None
+    minutes_until_open = (start - MINUTES_BEFORE_START) - current
+    if minutes_until_open < 0 or minutes_until_open > COUNTDOWN_WINDOW_MINUTES:
+        return None
+    return {
+        "course_id": slot["course_id"],
+        "course_name": slot.get("course_name", "Sin nombre"),
+        "start_time": slot.get("iniTime"),
+        "minutes_until_start": int(minutes_until_open),
+        "classroom": required_classroom,
+    }
+
+
 def _clock(moment):
     english_day = moment.strftime("%A")
     spanish_day = ENGLISH_TO_SPANISH_WEEKDAYS.get(english_day, english_day)
@@ -213,7 +319,14 @@ def active_course_for_classroom(teacher_id=None, required_classroom=None):
 
         now = datetime.now()
         spanish_day, english_day, current_time = _clock(now)
+        today = now.strftime("%Y-%m-%d")
         slots = load_classroom_slots(required_classroom, teacher_id=teacher_id)
+        for slot in slots:
+            if not slot.get("event"):
+                continue
+            start_text = event_window_matches(slot, today, current_time, required_classroom)
+            if start_text:
+                return (slot["course_id"], start_text)
         for slot in slots:
             start_text = schedule_matches_classroom(
                 [slot], spanish_day, english_day, current_time, required_classroom,
@@ -252,9 +365,13 @@ def course_name_for(required_classroom, course_id):
     return "Sin nombre"
 
 
-def milliseconds_until_window_end(start_text, now=None):
+def milliseconds_until_window_end(start_text, now=None, close_text=None):
     """How long until the open window stops matching. The last minute still counts."""
     now = now or datetime.now()
+    if close_text:
+        hour, minute = (int(part) for part in close_text.split(":"))
+        window_end = now.replace(hour=hour, minute=minute, second=59, microsecond=0)
+        return max(0, int((window_end - now).total_seconds() * 1000))
     hour, minute = (int(part) for part in start_text.split(":"))
     start = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
     window_end = start + timedelta(minutes=MINUTES_AFTER_START + 1)
@@ -300,7 +417,10 @@ def upcoming_starts(required_classroom, now=None, refresh=False):
     now = now or datetime.now()
     found = []
     for slot in load_classroom_slots(required_classroom, refresh=refresh):
-        when = next_occurrence(slot.get("day", ""), slot.get("iniTime", "00:00"), now)
+        if slot.get("event"):
+            when = _event_start(slot, now)
+        else:
+            when = next_occurrence(slot.get("day", ""), slot.get("iniTime", "00:00"), now)
         if when is None:
             continue
         found.append((slot["course_id"], when))
@@ -311,6 +431,8 @@ def upcoming_starts(required_classroom, now=None, refresh=False):
 def schedule_matches_classroom(schedule, spanish_day, english_day, current_time, required_classroom):
     """Return the class start time when day, classroom, and the live window match."""
     for slot in schedule:
+        if slot.get("event"):
+            continue
         slot_day = slot.get("day", "")
         start_text = slot.get("iniTime", "00:00")
         classroom_name = slot.get("classroom", "").strip()
@@ -369,6 +491,11 @@ def next_course(required_classroom):
         spanish_day, english_day, current_time = _clock(now)
         upcoming = []
         for slot in load_classroom_slots(required_classroom):
+            if slot.get("event"):
+                found = _event_countdown(slot, current_time, required_classroom)
+                if found:
+                    upcoming.append(found)
+                continue
             found = next_schedule_opening(
                 slot, spanish_day, english_day, current_time, required_classroom,
                 slot["course_id"], {"nameCourse": slot["course_name"]},

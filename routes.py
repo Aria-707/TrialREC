@@ -14,8 +14,8 @@ from attendance import lookup_student, record_attendance
 from audit import log_event
 from classroom import current_classroom, load_saved_classroom, set_classroom
 from consent import biometrico_is_true, has_legal_row, record_acceptance, sweep_before_class_frame
-from config import DEMO_MODE
 from encryption import encrypt_file
+import event_mode
 from face import (
     analyze_frame,
     begin_capture,
@@ -33,11 +33,12 @@ from schedule import (
     available_classrooms,
     class_roster,
     course_name_for,
+    event_close_for,
     milliseconds_until_countdown,
     milliseconds_until_window_end,
     next_course,
 )
-from vector_store import commit_vector_copy
+from vector_store import commit_event_vector, commit_vector_copy
 
 app = Flask(__name__)
 CORS(app)
@@ -72,7 +73,7 @@ def index():
 
 @app.route("/enroll")
 def enroll():
-    return render_template("enroll.html", demo_mode=DEMO_MODE)
+    return render_template("enroll.html")
 
 
 @app.route("/recognize", methods=["POST"])
@@ -241,12 +242,6 @@ def _national_id_from_request(data):
 @app.route("/api/lookup_student", methods=["POST"])
 def api_lookup_student():
     """Confirm a cédula before any photo is stored."""
-    if DEMO_MODE:
-        return jsonify({
-            "status": "demo_unavailable",
-            "message": "El modo de prueba todavía no está afinado.",
-        }), 200
-
     data = request.get_json() or {}
     national_id = _national_id_from_request(data)
     if not national_id:
@@ -257,12 +252,6 @@ def api_lookup_student():
 @app.route("/api/begin_capture", methods=["POST"])
 def api_begin_capture():
     """Park older photos so this capture replaces them."""
-    if DEMO_MODE:
-        return jsonify({
-            "ok": False,
-            "error": "El modo de prueba todavía no está afinado.",
-        }), 400
-
     data = request.get_json() or {}
     national_id = _national_id_from_request(data)
     if not national_id:
@@ -288,12 +277,6 @@ def save_photo():
         data = request.get_json()
         if not data:
             return jsonify({"ok": False, "error": "No se recibió data"}), 400
-
-        if DEMO_MODE:
-            return jsonify({
-                "ok": False,
-                "error": "El modo de prueba todavía no está afinado.",
-            }), 400
 
         national_id = _national_id_from_request(data)
         photo_b64 = data.get("photo", "")
@@ -380,12 +363,6 @@ def train():
     """Store one SFace vector from data/{cedula}, then delete those photos."""
     national_id = None
     try:
-        if DEMO_MODE:
-            return jsonify({
-                "success": False,
-                "error": "El modo de prueba todavía no está afinado.",
-            }), 400
-
         data = request.get_json() or {}
         national_id = _national_id_from_request(data)
         if not national_id:
@@ -429,18 +406,24 @@ def train():
             discard_capture(national_id)
             return jsonify({"success": False, "error": "Falló el entrenamiento"}), 500
 
-        if not already_consented and not record_acceptance(national_id):
-            return jsonify({
-                "success": False,
-                "error": "Un administrador tiene que registrarte antes de este alta.",
-            }), 400
-
         values = stored_vector(national_id)
-        if values is None or not commit_vector_copy(national_id, values):
-            return jsonify({
-                "success": False,
-                "error": "No se pudo guardar el vector. Las fotos siguen en el equipo.",
-            }), 500
+        if event_mode.enabled():
+            if values is None or not commit_event_vector(national_id, values):
+                return jsonify({
+                    "success": False,
+                    "error": "No se pudo guardar el vector. Las fotos siguen en el equipo.",
+                }), 500
+        else:
+            if not already_consented and not record_acceptance(national_id):
+                return jsonify({
+                    "success": False,
+                    "error": "Un administrador tiene que registrarte antes de este alta.",
+                }), 400
+            if values is None or not commit_vector_copy(national_id, values):
+                return jsonify({
+                    "success": False,
+                    "error": "No se pudo guardar el vector. Las fotos siguen en el equipo.",
+                }), 500
 
         clear_capture(national_id)
 
@@ -522,6 +505,8 @@ def api_active_course():
 
         course_id, start_time = active_course_for_classroom(required_classroom=classroom_name)
         if course_id:
+            today = datetime.now().strftime("%Y-%m-%d")
+            close_text = event_close_for(classroom_name, course_id, today)
             return jsonify({
                 "course_active": True,
                 "classroom_configured": True,
@@ -529,7 +514,9 @@ def api_active_course():
                 "start_time": start_time,
                 "classroom": classroom_name,
                 "course_name": course_name_for(classroom_name, course_id),
-                "milliseconds_until_window_end": milliseconds_until_window_end(start_time),
+                "milliseconds_until_window_end": milliseconds_until_window_end(
+                    start_time, close_text=close_text,
+                ),
             }), 200
 
         upcoming = next_course(classroom_name)
@@ -566,6 +553,61 @@ def api_classrooms():
     except Exception as error:
         print(f"[✖] ERROR en /api/classrooms al leer los salones de courses: {error}")
         return jsonify({"success": False, "error": str(error)}), 500
+
+
+@app.route("/api/event_mode", methods=["GET"])
+def api_event_mode():
+    """Whether this process is enrolling for an event."""
+    return jsonify(event_mode.status()), 200
+
+
+@app.route("/api/event_mode", methods=["POST"])
+def api_set_event_mode():
+    """Turn event enrollment on or off. Does not write `.env`."""
+    data = request.get_json() or {}
+    if data.get("enabled") is True:
+        ok, message = event_mode.enable(
+            data.get("name", ""),
+            data.get("ini_time", ""),
+            data.get("end_time", ""),
+        )
+    else:
+        ok, message = event_mode.disable()
+    if not ok:
+        return jsonify({"ok": False, "error": message}), 400
+    payload = event_mode.status()
+    payload["ok"] = True
+    return jsonify(payload), 200
+
+
+@app.route("/api/event_person", methods=["POST"])
+def api_event_person():
+    """Create a person for this event. An existing cédula is not overwritten."""
+    data = request.get_json() or {}
+    national_id = _national_id_from_request(data)
+    if not national_id:
+        return jsonify({"ok": False, "error": "La cédula solo puede tener números"}), 400
+    ok, message = event_mode.create_person(
+        national_id,
+        data.get("name", ""),
+        bool(data.get("portal")),
+    )
+    if not ok:
+        return jsonify({"ok": False, "error": message}), 400
+    return jsonify({"ok": True}), 200
+
+
+@app.route("/api/event_link", methods=["POST"])
+def api_event_link():
+    """Link an existing cédula to today's event without changing their vector."""
+    data = request.get_json() or {}
+    national_id = _national_id_from_request(data)
+    if not national_id:
+        return jsonify({"ok": False, "error": "La cédula solo puede tener números"}), 400
+    ok, message = event_mode.link_existing(national_id, data.get("name", ""))
+    if not ok:
+        return jsonify({"ok": False, "error": message}), 400
+    return jsonify({"ok": True}), 200
 
 
 @app.route("/api/set_classroom", methods=["POST"])

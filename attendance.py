@@ -1,31 +1,14 @@
-"""Attendance writes and the demo enrollment path."""
+"""Attendance writes."""
 from datetime import datetime
 
 from classroom import current_classroom
 from consent import biometrico_is_true, has_legal_row
-from config import DEMO_COURSE_ID, DEMO_ID_MAX, DEMO_ID_MIN, DEMO_MODE
 from firebase_config import db
 from schedule import active_course_for_classroom, arrival_from_start
 
 
-def normalize_person_name(name):
-    """Uppercase name with accents removed, for matching namePerson. Not a folder name."""
-    name = name.strip()
-    name = " ".join(name.split())
-    replacements = {
-        "Á": "A", "É": "E", "Í": "I", "Ó": "O", "Ú": "U",
-        "á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u",
-        "Ñ": "N", "ñ": "n",
-    }
-    for original, replacement in replacements.items():
-        name = name.replace(original, replacement)
-    return name.upper()
-
-
 def lookup_student(national_id):
     """Read person/{cedula}. The cédula is the document id."""
-    if DEMO_MODE:
-        return {"status": "demo_unavailable"}
     if not str(national_id).isdigit():
         return {"status": "missing"}
 
@@ -35,7 +18,7 @@ def lookup_student(national_id):
 
     fields = document.to_dict() or {}
     if fields.get("type") != "Estudiante":
-        return {"status": "not_student"}
+        return {"status": "not_student", "name": fields.get("namePerson") or ""}
 
     return {
         "status": "student",
@@ -101,7 +84,7 @@ def record_attendance(national_id, course_id=None, class_start=None):
                 return False, None
 
             student_ids = course_doc.to_dict().get("estudianteID", [])
-            if student_id not in student_ids and not DEMO_MODE:
+            if student_id not in student_ids:
                 print("[!] La cédula no está en la clase activa. No se escribe asistencia.")
                 return False, None
 
@@ -122,19 +105,7 @@ def record_attendance(national_id, course_id=None, class_start=None):
 
         if student_id not in existing:
             print("[!] La cédula no está en la clase activa. No se escribe asistencia.")
-            if not DEMO_MODE:
-                return False, None
-
-            person_courses = (student_doc.to_dict() or {}).get("courses", [])
-            if DEMO_COURSE_ID not in person_courses:
-                return False, None
-
-            existing[student_id] = {
-                "estadoAsistencia": "Ausente",
-                "horaRegistro": None,
-                "late": False,
-            }
-            assistance_ref.update({student_id: existing[student_id]})
+            return False, None
 
         current_status = existing[student_id].get("estadoAsistencia")
         print(f"Estado actual: {current_status}")
@@ -161,54 +132,3 @@ def record_attendance(national_id, course_id=None, class_start=None):
         import traceback
         traceback.print_exc()
         return False, None
-
-
-def enroll_demo_student(student_name):
-    """Demo only: create a person with a random id and course 00000."""
-    if not DEMO_MODE:
-        print("El modo de prueba está apagado. No se crea un documento en person.")
-        return None
-    try:
-        import random
-
-        normalized_name = normalize_person_name(student_name)
-
-        print(f"\n{'='*60}")
-        print("🔥 REGISTRANDO ESTUDIANTE EN FIREBASE (TEMPORAL)")
-        print(f"{'='*60}")
-        print(f"Nombre original: '{student_name}'")
-        print(f"Nombre normalizado: '{normalized_name}'")
-
-        people = db.collection("person")
-        query = people.where("type", "==", "Estudiante").get()
-
-        for doc in query:
-            stored_name = normalize_person_name(doc.to_dict().get("namePerson", ""))
-            if stored_name == normalized_name:
-                print(f"[!] Estudiante ya existe en Firebase con ID: {doc.id}")
-                print(f"{'='*60}\n")
-                return doc.id
-
-        new_id = str(random.randint(DEMO_ID_MIN, DEMO_ID_MAX))
-        while people.document(new_id).get().exists:
-            new_id = str(random.randint(DEMO_ID_MIN, DEMO_ID_MAX))
-
-        people.document(new_id).set({
-            "namePerson": normalized_name,
-            "type": "Estudiante",
-            "courses": [DEMO_COURSE_ID],
-        })
-
-        print("✅ ESTUDIANTE REGISTRADO EXITOSAMENTE")
-        print(f"   ID: {new_id}")
-        print(f"   Nombre: {normalized_name}")
-        print("   Tipo: Estudiante")
-        print(f"   Cursos: ['{DEMO_COURSE_ID}']")
-        print(f"{'='*60}\n")
-        return new_id
-
-    except Exception as error:
-        print(f"[✖] ERROR registrando al estudiante de prueba '{student_name}' en Firebase: {error}")
-        import traceback
-        traceback.print_exc()
-        return None

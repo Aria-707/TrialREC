@@ -359,3 +359,32 @@ def refresh_remote_gallery():
         print(f"Galería desde Firebase: {len(stored)}")
     if missing == 0 and not _digit_folders():
         _delete_plaintext_vectors()
+
+
+def reload_stored_gallery():
+    """Replace the in-memory gallery with the real sface copies only."""
+    from vector_store import list_stored_vectors
+
+    stored, missing, problem = list_stored_vectors()
+    if problem:
+        print(problem)
+        return False
+    with model_lock:
+        face_vectors.clear()
+        face_vectors.update(stored)
+    if missing:
+        print(f"Galería desde Firebase: {len(stored)}. Faltan {missing}.")
+    else:
+        print(f"Galería desde Firebase: {len(stored)}")
+    return True
+
+
+def overlay_event_vectors():
+    """Prefer sface-test for a cédula that has one. The real copy stays in Firebase."""
+    from vector_store import list_event_vectors
+
+    vectors = list_event_vectors()
+    with model_lock:
+        for national_id, vector in vectors.items():
+            face_vectors[national_id] = vector
+    print(f"Vectores de evento en memoria: {len(vectors)}")

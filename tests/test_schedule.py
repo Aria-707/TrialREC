@@ -1,7 +1,13 @@
 """Class window. These calls do not read or write Firestore."""
 from datetime import datetime
 
-from schedule import arrival_from_start, next_occurrence, schedule_matches_classroom
+from schedule import (
+    arrival_from_start,
+    event_window_matches,
+    next_occurrence,
+    schedule_matches_classroom,
+    valid_event_clocks,
+)
 
 SLOT = {
     "day": "Lunes",
@@ -38,6 +44,34 @@ def test_late_starts_after_fifteen_minutes():
     assert (on_time, on_time_flag) == ("on_time", False)
     assert (arrived, arrived_flag) == ("arrived", False)
     assert (late, late_flag) == ("late", True)
+
+
+EVENT_SLOT = {
+    "event": True,
+    "date": "2026-10-12",
+    "iniTime": "10:00",
+    "endTime": "12:00",
+    "classroom": "E-102",
+    "day": "",
+}
+
+
+def test_event_window_opens_five_minutes_before_and_closes_at_end():
+    assert event_window_matches(EVENT_SLOT, "2026-10-12", "09:55", "E-102") == "10:00"
+    assert event_window_matches(EVENT_SLOT, "2026-10-12", "12:00", "E-102") == "10:00"
+    assert event_window_matches(EVENT_SLOT, "2026-10-12", "09:54", "E-102") is None
+    assert event_window_matches(EVENT_SLOT, "2026-10-12", "12:01", "E-102") is None
+    assert event_window_matches(EVENT_SLOT, "2026-10-13", "10:00", "E-102") is None
+    assert schedule_matches_classroom(
+        [EVENT_SLOT], "Lunes", "Monday", "10:00", "E-102",
+    ) is None
+
+
+def test_event_clocks_need_an_end_after_the_start():
+    assert valid_event_clocks("09:00", "10:00") is True
+    assert valid_event_clocks("10:00", "10:00") is False
+    assert valid_event_clocks("10:00", "09:00") is False
+    assert valid_event_clocks("10", "12:00") is False
 
 
 def test_past_clock_moves_to_next_week():

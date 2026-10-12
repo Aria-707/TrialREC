@@ -6,7 +6,7 @@ from flask import Flask, Response, redirect, render_template, request, send_file
 from flask_cors import CORS
 
 from classroom import load_saved_classroom
-from config import DEMO_MODE, RECOGNITION_HOST, RECOGNITION_PORT
+from config import RECOGNITION_HOST, RECOGNITION_PORT
 
 app = Flask(__name__)
 CORS(app)
@@ -18,6 +18,7 @@ GET_PATHS = (
     "/api/active_course",
     "/api/classrooms",
     "/api/current_classroom",
+    "/api/event_mode",
 )
 POST_PATHS = (
     "/recognize",
@@ -28,6 +29,9 @@ POST_PATHS = (
     "/api/begin_capture",
     "/api/set_classroom",
     "/api/clear_recognitions",
+    "/api/event_mode",
+    "/api/event_person",
+    "/api/event_link",
 )
 
 
@@ -44,7 +48,7 @@ def index():
 
 @app.route("/enroll")
 def enroll():
-    return render_template("enroll.html", demo_mode=DEMO_MODE)
+    return render_template("enroll.html")
 
 
 @app.route("/setup")
@@ -84,18 +88,18 @@ def forward_to_recognition(path):
         )
 
 
-def _proxy(path):
+def _proxy(path, method):
     def view():
         return forward_to_recognition(path)
 
-    view.__name__ = "proxy_" + path.strip("/").replace("/", "_")
+    view.__name__ = "proxy_" + method.lower() + "_" + path.strip("/").replace("/", "_")
     return view
 
 
 for proxied_path in GET_PATHS:
-    proxy_view = _proxy(proxied_path)
+    proxy_view = _proxy(proxied_path, "GET")
     app.add_url_rule(proxied_path, endpoint=proxy_view.__name__, view_func=proxy_view, methods=["GET"])
 
 for proxied_path in POST_PATHS:
-    proxy_view = _proxy(proxied_path)
+    proxy_view = _proxy(proxied_path, "POST")
     app.add_url_rule(proxied_path, endpoint=proxy_view.__name__, view_func=proxy_view, methods=["POST"])

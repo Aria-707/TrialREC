@@ -549,7 +549,7 @@ body {
 .config-modal-content {
   background: white;
   border-radius: 20px;
-  padding: 30px;
+  padding: 64px 30px 30px;
   max-width: 500px;
   width: 90%;
   position: relative;
@@ -647,6 +647,95 @@ body {
   transform: translateY(-2px);
 }
 
+
+.config-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.config-tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #f0f0f0;
+  color: #404040;
+  font-family: "Titillium Web", sans-serif;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.config-tab.active {
+  background: #275317;
+  color: white;
+}
+
+.interruptor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-weight: bold;
+  color: #3A3A3A;
+}
+
+.interruptor input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: #275317;
+}
+
+.modo-ayuda,
+.modo-etiqueta {
+  color: #7F7F7F;
+  font-size: 14px;
+}
+
+#modo-step .config-modal-body {
+  text-align: left;
+}
+
+#modo-step .config-modal-body input {
+  text-align: left;
+}
+
+.modo-ayuda {
+  margin: 0 0 16px 0;
+}
+
+.modo-etiqueta {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.config-modal-body input:disabled {
+  color: #7F7F7F;
+  background: #f3f3f3;
+}
+
+.config-modal-content:has(#aviso-evento[style*="display: flex"]) > :not(#aviso-evento) {
+  display: none !important;
+}
+
+.aviso-evento {
+  display: none;
+  background: transparent;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.aviso-evento p {
+  color: #3A3A3A;
+  margin: 0;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.aviso-evento .config-modal-footer {
+  width: 100%;
+}
 
 .modal-error {
   color: #771C07;

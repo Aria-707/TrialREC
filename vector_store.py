@@ -85,6 +85,74 @@ def list_stored_vectors():
     return loaded, missing, None
 
 
+def _event_reference(national_id):
+    return (
+        db.collection("person")
+        .document(str(national_id))
+        .collection("vector")
+        .document("sface-test")
+    )
+
+
+def commit_event_vector(national_id, values):
+    """Write sface-test and accept it only when the read-back matches. sface stays."""
+    if not save_event_vector(national_id, values):
+        return False
+    if not _same_numbers(read_event_vector(national_id), values):
+        print("Copia de evento no se pudo leer.")
+        return False
+    print("Copia de evento leída.")
+    return True
+
+
+def save_event_vector(national_id, values):
+    try:
+        token = cipher().encrypt(json.dumps(values).encode("utf-8")).decode("ascii")
+        _event_reference(national_id).set({
+            "modelo": MODEL_NAME,
+            "vector": token,
+            "actualizado": datetime.now().astimezone(),
+            "event": True,
+        })
+        print("Copia de evento escrita.")
+        return True
+    except Exception:
+        print("Copia de evento no se pudo escribir.")
+        return False
+
+
+def read_event_vector(national_id):
+    try:
+        snapshot = _event_reference(national_id).get()
+        if not snapshot.exists:
+            return None
+        return _decrypt_fields(cipher(), snapshot.to_dict())
+    except Exception:
+        return None
+
+
+def list_event_vectors():
+    """Decrypt sface-test documents. A network error returns no overlay."""
+    loaded = {}
+    try:
+        fernet = cipher()
+        snapshots = list(db.collection_group("vector").stream())
+    except Exception:
+        print("Firebase no responde al leer los vectores del evento.")
+        return {}
+    for snapshot in snapshots:
+        if snapshot.id != "sface-test":
+            continue
+        person = snapshot.reference.parent.parent
+        if person is None or not str(person.id).isdigit():
+            continue
+        values = _decrypt_fields(fernet, snapshot.to_dict())
+        if values is None:
+            continue
+        loaded[str(person.id)] = values
+    return loaded
+
+
 def delete_vector_copy(national_id):
     """Remove the Firebase copy when it exists. Missing is not an error."""
     try:

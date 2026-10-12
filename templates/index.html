@@ -37,7 +37,7 @@
       <div id="auth-step">
         <div class="config-modal-header">
           <h2>Autenticación Requerida</h2>
-          <p style="color: #7F7F7F; margin: 0;">Solo administradores pueden cambiar el salón</p>
+          <p style="color: #7F7F7F; margin: 0;">Solo administradores pueden cambiar la configuración</p>
         </div>
 
         <div class="config-modal-body">
@@ -53,26 +53,60 @@
         </div>
       </div>
 
-      <!-- PASO 2: SELECCIÓN DE SALÓN -->
-      <div id="salon-step" style="display: none;">
-        <div class="config-modal-header">
-          <h2>Cambiar Salón</h2>
-          <p style="color: #7F7F7F; margin: 0;">Selecciona el nuevo salón</p>
+      <div id="admin-step" style="display: none;">
+        <div class="config-tabs">
+          <button type="button" class="config-tab active" id="tab-salon">Cambiar salón</button>
+          <button type="button" class="config-tab" id="tab-modo">Cambiar modo</button>
         </div>
 
-        <div class="config-modal-body">
-          <select id="modal-salon-select">
-            <option value="" style="color: #7F7F7F;">-- Selecciona un salón --</option>
-          </select>
+        <div id="salon-step">
+          <div class="config-modal-header">
+            <h2>Cambiar salón</h2>
+            <p style="color: #7F7F7F; margin: 0;">Selecciona el nuevo salón</p>
+          </div>
+
+          <div class="config-modal-body">
+            <select id="modal-salon-select">
+              <option value="" style="color: #7F7F7F;">-- Selecciona un salón --</option>
+            </select>
+          </div>
+
+          <div class="config-modal-footer">
+            <button class="btn-modal-cancelar" id="btn-modal-cancelar">Cancelar</button>
+            <button class="btn-modal-confirmar" id="btn-modal-confirmar">Confirmar</button>
+          </div>
         </div>
 
+        <div id="modo-step" style="display: none;">
+          <div class="config-modal-header">
+            <h2>Cambiar modo</h2>
+          </div>
+          <div class="config-modal-body">
+            <label class="interruptor" for="modo-evento">
+              <span>Modo evento</span>
+              <input type="checkbox" id="modo-evento">
+            </label>
+            <p class="modo-ayuda">Al activar se toman la fecha de hoy y el salón actual para crear el evento.</p>
+            <label class="modo-etiqueta" for="modo-nombre">Nombre</label>
+            <input type="text" id="modo-nombre" placeholder="Nombre del evento" autocomplete="off" disabled>
+            <label class="modo-etiqueta" for="modo-inicio">Hora de inicio</label>
+            <input type="time" id="modo-inicio" disabled>
+            <label class="modo-etiqueta" for="modo-fin">Hora final</label>
+            <input type="time" id="modo-fin" disabled>
+            <div id="modo-error" class="modal-error"></div>
+          </div>
+          <div class="config-modal-footer">
+            <button type="button" class="btn-modal-cancelar" id="btn-modo-cancelar">Cancelar</button>
+            <button type="button" class="btn-modal-confirmar" id="btn-modo-confirmar">Confirmar</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="aviso-evento" class="aviso-evento">
+        <button type="button" class="btn-cerrar-modal" id="aviso-evento-x" aria-label="Cerrar">✖</button>
+        <p>Esta funcionalidad se usa principalmente para realizar demostraciones y pruebas, actualmente, por lo que te recordamos que todas las personas y datos biométricos nuevos que sean registrados durante el Modo Evento serán eliminados en el próximo reinicio del sistema; lo único que se mantendrá es el registro de asistencias generado.</p>
         <div class="config-modal-footer">
-          <button class="btn-modal-cancelar" id="btn-modal-cancelar">
-            Cancelar
-          </button>
-          <button class="btn-modal-confirmar" id="btn-modal-confirmar">
-            Confirmar
-          </button>
+          <button type="button" class="btn-modal-confirmar" id="aviso-evento-cerrar">Entendido</button>
         </div>
       </div>
     </div>
@@ -181,6 +215,7 @@
     <img src="{{ url_for('static', filename='imagenes/logo_uni.png') }}" alt="Logo de la Universidad">
   </div>
 
+  <script src="{{ url_for('static', filename='event_panel.js') }}"></script>
   <script type="module">
     import { init_firebase } from "/static/firebaseCred.js";
     import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
@@ -469,7 +504,8 @@
     config_button.addEventListener('click', () => {
       config_modal.classList.add('active');
       auth_step.style.display = 'block';
-      classroom_step.style.display = 'none';
+      document.getElementById('admin-step').style.display = 'none';
+      document.getElementById('aviso-evento').style.display = 'none';
       admin_email_input.value = '';
       admin_password_input.value = '';
       modal_error.style.display = 'none';
@@ -507,7 +543,8 @@
           }
 
           auth_step.style.display = 'none';
-          classroom_step.style.display = 'block';
+          document.getElementById('admin-step').style.display = 'block';
+          window.show_event_salon_tab();
         } else {
           throw new Error('No tienes permisos de administrador');
         }
@@ -582,6 +619,10 @@
 
     cancel_classroom_button.addEventListener('click', () => {
       config_modal.classList.remove('active');
+    });
+
+    window.addEventListener('event-mode', () => {
+      check_active_course();
     });
 
     config_modal.addEventListener('click', (e) => {
