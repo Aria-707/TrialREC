@@ -9,16 +9,21 @@ import firebase_config  # noqa: F401  (initializes Firebase before the model)
 import face
 import classroom
 import consent
+import schedule
 import routes
-from constants import RECOGNITION_HOST, RECOGNITION_PORT
+from config import RECOGNITION_HOST, RECOGNITION_PORT
 
 if __name__ == "__main__":
+    serving = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    if serving:
+        face.refresh_remote_gallery()
+
     print("\n" + "=" * 60)
     print("🚀 INICIANDO RECONOCIMIENTO")
     print("=" * 60)
     print(f"📁 Data Path: {face.photo_dir}")
-    print(f"🤖 Model Path: {face.model_path}")
-    print(f"👥 Personas cargadas: {len(face.image_paths)}")
+    print("🤖 Galería: Firebase")
+    print(f"👥 Personas cargadas: {face.person_count()}")
     print(f"Python: {sys.version}")
     print(f"OpenCV: {cv2.__version__}")
 
@@ -37,8 +42,9 @@ if __name__ == "__main__":
     print("✅ Scheduler iniciado en hilo separado")
     print("=" * 60 + "\n")
 
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    if serving:
         consent.sweep_and_rebuild()
         consent.start_listener()
+        schedule.start_schedule_watch()
 
     routes.app.run(debug=True, host=RECOGNITION_HOST, port=RECOGNITION_PORT)

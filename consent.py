@@ -130,14 +130,20 @@ def delete_revoked_folders(photo_dir):
 
 
 def sweep_and_rebuild():
-    """Drop revoked photo folders and rebuild the model when something left."""
-    from face import photo_dir, rebuild_model
+    """Drop a revoked vector even when the photo folder is already gone."""
+    from face import clear_capture, forget_vector, person_ids, photo_dir
+    from vector_store import delete_vector_copy
 
-    removed = delete_revoked_folders(photo_dir)
-    if not removed:
-        return
-    print(f"Barrido: {len(removed)} carpeta(s) sin consentimiento. Reconstruyendo el modelo.")
-    rebuild_model()
+    revoked = set(delete_revoked_folders(photo_dir))
+    for national_id in person_ids():
+        if biometrico_is_explicit_false(national_id):
+            revoked.add(national_id)
+    for national_id in revoked:
+        clear_capture(national_id)
+        forget_vector(national_id)
+        delete_vector_copy(national_id)
+    if revoked:
+        print(f"Barrido: {len(revoked)} consentimiento(s) retirado(s). Vector retirado.")
 
 
 def sweep_before_class_frame(course_id):
@@ -158,7 +164,8 @@ def start_listener():
         return
 
     def on_snapshot(_documents, changes, _read_time):
-        from face import photo_dir, rebuild_model
+        from face import clear_capture, forget_vector
+        from vector_store import delete_vector_copy
 
         removed_any = False
         seen = set()
@@ -172,17 +179,12 @@ def start_listener():
             seen.add(national_id)
             if not biometrico_is_explicit_false(national_id):
                 continue
-            folder = os.path.join(photo_dir, national_id)
-            if not os.path.isdir(folder):
-                continue
-            shutil.rmtree(folder)
-            previous = folder + ".previous"
-            if os.path.isdir(previous):
-                shutil.rmtree(previous)
-            removed_any = True
+            dropped_folder = clear_capture(national_id)
+            dropped_copy = delete_vector_copy(national_id)
+            if forget_vector(national_id) or dropped_folder or dropped_copy:
+                removed_any = True
         if removed_any:
-            print("Consentimiento retirado. Reconstruyendo el modelo.")
-            rebuild_model()
+            print("Consentimiento retirado. Vector retirado.")
 
     try:
         _listener = db.collection_group(LEGAL_COLLECTION).on_snapshot(on_snapshot)

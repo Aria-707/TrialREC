@@ -3,7 +3,7 @@ from datetime import datetime
 
 from classroom import current_classroom
 from consent import biometrico_is_true, has_legal_row
-from constants import DEMO_COURSE_ID, DEMO_ID_MAX, DEMO_ID_MIN, DEMO_MODE
+from config import DEMO_COURSE_ID, DEMO_ID_MAX, DEMO_ID_MIN, DEMO_MODE
 from firebase_config import db
 from schedule import active_course_for_classroom, arrival_from_start
 

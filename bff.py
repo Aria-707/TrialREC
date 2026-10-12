@@ -6,7 +6,7 @@ from flask import Flask, Response, redirect, render_template, request, send_file
 from flask_cors import CORS
 
 from classroom import load_saved_classroom
-from constants import DEMO_MODE, RECOGNITION_HOST, RECOGNITION_PORT
+from config import DEMO_MODE, RECOGNITION_HOST, RECOGNITION_PORT
 
 app = Flask(__name__)
 CORS(app)

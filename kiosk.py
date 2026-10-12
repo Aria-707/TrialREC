@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 
-from constants import BFF_HOST, BFF_PORT, RECOGNITION_HOST, RECOGNITION_PORT
+from config import BFF_HOST, BFF_PORT, RECOGNITION_HOST, RECOGNITION_PORT
 
 ROOT = Path(__file__).resolve().parent
 

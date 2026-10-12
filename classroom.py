@@ -1,7 +1,7 @@
 """Classroom selected for this kiosk, in memory and in classroom_config.txt."""
 import os
 
-from constants import CLASSROOM_CONFIG_FILE
+from config import CLASSROOM_CONFIG_FILE
 
 configured_classroom = None
 _listeners = []

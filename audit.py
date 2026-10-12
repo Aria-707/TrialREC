@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime
 
-from constants import AUDIT_LOG_FILE
+from config import AUDIT_LOG_FILE
 
 
 def log_event(event_type, description, user=None, extra=None):

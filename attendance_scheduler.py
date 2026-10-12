@@ -2,7 +2,7 @@
 import threading
 from datetime import datetime, timedelta
 
-from constants import SCHEDULER_LOOKAHEAD_MINUTES
+from config import SCHEDULER_LOOKAHEAD_MINUTES
 from firebase_config import db
 from schedule import upcoming_starts
 
@@ -167,7 +167,9 @@ def scheduled_task(classroom_callback):
 def start_scheduler(classroom_callback):
     """Start the scheduler thread. The Flask reloader can start it twice."""
     import classroom
+    from schedule import on_schedule_change
     classroom.on_classroom_change(lambda _name: interrupt_sleep())
+    on_schedule_change(interrupt_sleep)
     thread = threading.Thread(
         target=scheduled_task,
         args=(classroom_callback,),

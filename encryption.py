@@ -8,7 +8,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from constants import ENCRYPTION_KEY_FILE, ENCRYPTION_SALT_FILE, PHOTO_DIR_NAME
+from config import ENCRYPTION_KEY_FILE, ENCRYPTION_SALT_FILE, PHOTO_DIR_NAME
 
 
 def load_or_create_key():

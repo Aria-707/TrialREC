@@ -2,7 +2,6 @@
 import base64
 import os
 import re
-import shutil
 import time
 from datetime import datetime
 
@@ -15,30 +14,30 @@ from attendance import lookup_student, record_attendance
 from audit import log_event
 from classroom import current_classroom, load_saved_classroom, set_classroom
 from consent import biometrico_is_true, has_legal_row, record_acceptance, sweep_before_class_frame
-from constants import CONFIDENCE_THRESHOLD, DEMO_MODE, FACE_SIZE
+from config import DEMO_MODE
 from encryption import encrypt_file
 from face import (
+    analyze_frame,
     begin_capture,
-    detect_face,
     discard_capture,
-    image_paths,
-    label_dict,
-    model_path,
+    match_enrolled,
     photo_dir,
-    predict_face,
     recognition_seconds,
-    rebuild_model,
+    clear_capture,
+    stored_vector,
     train_incrementally,
 )
 from firebase_config import db
 from schedule import (
     active_course_for_classroom,
     available_classrooms,
+    class_roster,
     course_name_for,
     milliseconds_until_countdown,
     milliseconds_until_window_end,
     next_course,
 )
+from vector_store import commit_vector_copy
 
 app = Flask(__name__)
 CORS(app)
@@ -112,26 +111,32 @@ def recognize():
         if frame is None:
             return jsonify({"status": "error", "message": "Imagen inválida"}), 400
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray_copy = gray.copy()
-        faces, _method = detect_face(gray)
-
-        if faces is None or len(faces) == 0:
+        found = analyze_frame(frame)
+        if found["status"] in ("no_face", "unavailable"):
             return jsonify({"status": "no_face"})
+        if found["status"] == "several":
+            return jsonify({"status": "several_faces"})
 
-        x, y, width, height = faces[0]
-        face_crop = gray_copy[y:y + height, x:x + width]
-        face_crop = cv2.resize(face_crop, (FACE_SIZE, FACE_SIZE), interpolation=cv2.INTER_CUBIC)
+        box = found["box"]
         course_id, start_time = active_course_for_classroom(required_classroom=classroom_name)
         if course_id:
             sweep_before_class_frame(course_id)
-        label, confidence = predict_face(face_crop)
-        box = [int(x), int(y), int(width), int(height)]
 
-        folder_name = image_paths[label] if label < len(image_paths) else None
-        if confidence < CONFIDENCE_THRESHOLD and folder_name:
-            student_name = folder_name.replace("_", " ")
-            national_id = folder_name if folder_name.isdigit() else None
+        national_id = None
+        cosine = None
+        kind = "none"
+        if course_id:
+            national_id, cosine, kind = match_enrolled(found["feature"])
+            roster = {str(person_id) for person_id in class_roster(course_id)}
+            if kind == "match" and national_id not in roster:
+                national_id = None
+                kind = "unknown"
+        else:
+            print(f"[!] Rostro en {classroom_name}, sin curso activo")
+        shown = 0.0 if cosine is None else float(cosine) * 100
+
+        if kind == "match" and national_id:
+            student_name = national_id
             if national_id:
                 person = lookup_student(national_id)
                 if person.get("status") == "student" and person.get("name"):
@@ -159,7 +164,7 @@ def recognize():
                         return jsonify({
                             "status": "recognized",
                             "student": student_name,
-                            "confidence": float(confidence),
+                            "confidence": shown,
                             "box": box,
                             "classroom": classroom_name,
                             "recorded": True,
@@ -168,25 +173,23 @@ def recognize():
                     return jsonify({
                         "status": "recognized",
                         "student": student_name,
-                        "confidence": float(confidence),
+                        "confidence": shown,
                         "box": box,
                         "classroom": classroom_name,
                         "recorded": False,
                     })
-                if not course_id:
-                    print(f"[!] Reconocido en {classroom_name}, sin curso activo")
 
             return jsonify({
                 "status": "recognized",
                 "student": student_name,
-                "confidence": float(confidence),
+                "confidence": shown,
                 "box": box,
                 "classroom": classroom_name,
             })
 
         return jsonify({
             "status": "unknown",
-            "confidence": float(confidence),
+            "confidence": shown,
             "box": box,
         })
     except Exception as error:
@@ -211,15 +214,12 @@ def detect_face_route():
         if frame is None:
             return jsonify({"face_detected": False}), 200
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces, method = detect_face(gray)
-
-        if faces is not None and len(faces) > 0:
-            x, y, width, height = faces[0]
+        found = analyze_frame(frame)
+        if found["status"] == "one":
             return jsonify({
                 "face_detected": True,
-                "box": [int(x), int(y), int(width), int(height)],
-                "method": method,
+                "box": found["box"],
+                "method": "yunet",
             }), 200
         return jsonify({"face_detected": False}), 200
 
@@ -329,33 +329,21 @@ def save_photo():
             print(f"❌ Error decodificando la foto de alta: {error}")
             return jsonify({"ok": False, "error": f"Error decodificando: {str(error)}"}), 500
 
-        try:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        except Exception as error:
-            return jsonify({"ok": False, "error": f"Error en conversión: {str(error)}"}), 500
-
-        faces = None
-        method = "none"
-        try:
-            faces, method = detect_face(gray)
-        except Exception as error:
-            print(f"⚠️ Error detectando el rostro al guardar la foto: {error}")
-            return jsonify({"ok": False, "error": "No se detectó un rostro"}), 200
-
-        if faces is None or len(faces) == 0:
-            print("Sin rostro en el fotograma de alta. No se guarda.")
-            return jsonify({"ok": False, "error": "No se detectó un rostro"}), 200
-
         timestamp = int(time.time() * 1000000)
         file_path = os.path.join(person_path, f"face_{timestamp}.jpg")
 
         try:
-            x, y, width, height = faces[0]
-            face_crop = gray[y:y + height, x:x + width]
-            final_face = cv2.resize(face_crop, (FACE_SIZE, FACE_SIZE), interpolation=cv2.INTER_CUBIC)
-            capture_type = "crop"
+            found = analyze_frame(image, aligned=True)
+            if found["status"] != "one":
+                if found["status"] == "several":
+                    print("Más de un rostro en el fotograma de alta. No se guarda.")
+                else:
+                    print("Sin rostro en el fotograma de alta. No se guarda.")
+                return jsonify({"ok": False, "error": "No se detectó un rostro"}), 200
 
-            success = cv2.imwrite(file_path, final_face)
+            capture_type = "aligned"
+            method = "yunet"
+            success = cv2.imwrite(file_path, found["aligned"])
             if not success or not os.path.exists(file_path):
                 return jsonify({"ok": False, "error": "Error al guardar archivo"}), 500
 
@@ -389,7 +377,7 @@ def save_photo():
 
 @app.route("/train", methods=["POST"])
 def train():
-    """Train LBPH from data/{cedula}. A replacement rebuilds the whole model."""
+    """Store one SFace vector from data/{cedula}, then delete those photos."""
     national_id = None
     try:
         if DEMO_MODE:
@@ -417,7 +405,6 @@ def train():
             }), 400
 
         person_path = os.path.join(photo_dir, national_id)
-        previous_path = person_path + ".previous"
 
         print(f"\n{'='*60}")
         print("🤖 ENTRENANDO MODELO")
@@ -436,17 +423,11 @@ def train():
 
         print(f"Imágenes encontradas: {len(files)}")
         image_files = [os.path.join(person_path, name) for name in files]
-        if os.path.isdir(previous_path) or national_id in label_dict:
-            trained = rebuild_model()
-        else:
-            trained = train_incrementally({national_id: image_files})
+        trained = train_incrementally({national_id: image_files})
 
         if not trained:
             discard_capture(national_id)
             return jsonify({"success": False, "error": "Falló el entrenamiento"}), 500
-
-        if os.path.isdir(previous_path):
-            shutil.rmtree(previous_path)
 
         if not already_consented and not record_acceptance(national_id):
             return jsonify({
@@ -454,9 +435,18 @@ def train():
                 "error": "Un administrador tiene que registrarte antes de este alta.",
             }), 400
 
+        values = stored_vector(national_id)
+        if values is None or not commit_vector_copy(national_id, values):
+            return jsonify({
+                "success": False,
+                "error": "No se pudo guardar el vector. Las fotos siguen en el equipo.",
+            }), 500
+
+        clear_capture(national_id)
+
         print("✅ ENTRENAMIENTO COMPLETADO")
-        print(f"   • Imágenes preservadas: {len(files)}")
-        print(f"   • Modelo guardado en: {model_path}")
+        print(f"   • Imágenes usadas: {len(files)}")
+        print("   • Vector guardado en Firebase. Fotos borradas.")
         print(f"{'='*60}\n")
 
         log_event(
@@ -551,7 +541,7 @@ def api_active_course():
         }
         if not upcoming:
             wait_ms = milliseconds_until_countdown(classroom_name)
-            payload["milliseconds_until_next_check"] = 60000 if wait_ms is None else wait_ms
+            payload["milliseconds_until_next_check"] = 60000 if wait_ms is None else min(wait_ms, 60000)
         return jsonify(payload), 200
 
     except Exception as error:

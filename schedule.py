@@ -1,20 +1,31 @@
 """Class schedule, attendance window, and classroom list."""
 from datetime import datetime, timedelta
 
-from constants import (
+from config import (
     COUNTDOWN_WINDOW_MINUTES,
-    ENGLISH_TO_SPANISH_WEEKDAYS,
     LATE_AFTER_MINUTES,
     MINUTES_AFTER_START,
     MINUTES_BEFORE_START,
     ON_TIME_MARGIN_MINUTES,
-    SPANISH_TO_ENGLISH_WEEKDAYS,
 )
 from firebase_config import db
 
 ENGLISH_WEEKDAYS = (
     "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
 )
+# Firestore stores the Spanish names.
+SPANISH_TO_ENGLISH_WEEKDAYS = {
+    "Lunes": "Monday",
+    "Martes": "Tuesday",
+    "Miércoles": "Wednesday",
+    "Jueves": "Thursday",
+    "Viernes": "Friday",
+    "Sábado": "Saturday",
+    "Domingo": "Sunday",
+}
+ENGLISH_TO_SPANISH_WEEKDAYS = {
+    english: spanish for spanish, english in SPANISH_TO_ENGLISH_WEEKDAYS.items()
+}
 # Filled on the first read for a classroom, and again when the scheduler confirms the timetable.
 _slot_cache = {}
 
@@ -70,9 +81,62 @@ def available_classrooms():
         return []
 
 
+_roster_cache = {}
+
+
+def forget_class_rosters():
+    """Drop the in-memory class lists. The next frame reads each course once."""
+    _roster_cache.clear()
+
+
 def forget_classroom_slots():
     """Drop the in-memory timetable. The next question reads Firestore once."""
     _slot_cache.clear()
+    forget_class_rosters()
+
+
+_schedule_listeners = []
+_courses_watch = None
+_groups_watch = None
+
+
+def on_schedule_change(callback):
+    """Run after a course or group document changes. The scheduler uses this to wake."""
+    _schedule_listeners.append(callback)
+
+
+def start_schedule_watch():
+    """Reload the timetable when Firebase changes, without waiting for the next class."""
+    global _courses_watch, _groups_watch
+    if _courses_watch is not None or _groups_watch is not None:
+        return
+
+    def watch(query):
+        opened = {"ready": False}
+
+        def on_snapshot(_documents, changes, _read_time):
+            if not opened["ready"]:
+                opened["ready"] = True
+                return
+            if not changes:
+                return
+            forget_classroom_slots()
+            print("Horario actualizado en Firebase. Se vuelve a calcular.")
+            for callback in list(_schedule_listeners):
+                callback()
+
+        return query.on_snapshot(on_snapshot)
+
+    try:
+        _courses_watch = watch(db.collection("courses"))
+        print("✔ Escuchando courses")
+    except Exception as error:
+        print(f"⚠️ No se pudo escuchar courses: {error}")
+    try:
+        _groups_watch = watch(db.collection_group("groups"))
+        print("✔ Escuchando groups")
+    except Exception as error:
+        print(f"⚠️ No se pudo escuchar groups: {error}")
 
 
 def load_classroom_slots(required_classroom, teacher_id=None, refresh=False):
@@ -82,6 +146,8 @@ def load_classroom_slots(required_classroom, teacher_id=None, refresh=False):
     cache_key = (required_classroom, teacher_id)
     if not refresh and cache_key in _slot_cache:
         return _slot_cache[cache_key]
+    if refresh:
+        forget_class_rosters()
     slots = _read_classroom_slots(required_classroom, teacher_id)
     _slot_cache[cache_key] = slots
     print(f"Horario en memoria para {required_classroom}: {len(slots)} franjas")
@@ -158,6 +224,24 @@ def active_course_for_classroom(teacher_id=None, required_classroom=None):
     except Exception as error:
         print(f"[✖] ERROR obteniendo el curso activo del salón '{required_classroom}': {error}")
         return (None, None)
+
+
+def class_roster(course_id):
+    """Cédulas of the open class. Firestore is read once per course until the timetable refreshes."""
+    if not course_id:
+        return []
+    if course_id in _roster_cache:
+        return _roster_cache[course_id]
+    try:
+        document = db.collection("courses").document(course_id).get()
+        raw = (document.to_dict() or {}).get("estudianteID", []) if document.exists else []
+        enrolled = [str(item) for item in raw]
+    except Exception as error:
+        print(f"[✖] ERROR leyendo la lista del curso '{course_id}': {error}")
+        return []
+    _roster_cache[course_id] = enrolled
+    print(f"Lista de la clase {course_id} en memoria: {len(enrolled)} estudiantes")
+    return enrolled
 
 
 def course_name_for(required_classroom, course_id):
