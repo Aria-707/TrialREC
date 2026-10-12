@@ -597,6 +597,19 @@ def api_event_person():
     return jsonify({"ok": True}), 200
 
 
+@app.route("/api/event_consent", methods=["POST"])
+def api_event_consent():
+    """Temporary biometric acceptance for someone whose current row says false."""
+    data = request.get_json() or {}
+    national_id = _national_id_from_request(data)
+    if not national_id:
+        return jsonify({"ok": False, "error": "La cédula solo puede tener números"}), 400
+    ok, message = event_mode.grant_event_consent(national_id)
+    if not ok:
+        return jsonify({"ok": False, "error": message}), 400
+    return jsonify({"ok": True}), 200
+
+
 @app.route("/api/event_link", methods=["POST"])
 def api_event_link():
     """Link an existing cédula to today's event without changing their vector."""

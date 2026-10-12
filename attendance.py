@@ -112,11 +112,9 @@ def record_attendance(national_id, course_id=None, class_start=None):
 
         if current_status == "Ausente":
             assistance_ref.update({
-                student_id: {
-                    "estadoAsistencia": "Presente",
-                    "horaRegistro": current_time,
-                    "late": is_late,
-                }
+                f"{student_id}.estadoAsistencia": "Presente",
+                f"{student_id}.horaRegistro": current_time,
+                f"{student_id}.late": is_late,
             })
             print("[✔] ACTUALIZADO: Ausente → Presente")
             print(f"    Hora: {current_time}")

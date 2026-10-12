@@ -147,10 +147,32 @@ def enable(raw_name, ini_time, end_time):
     return True, ""
 
 
-def disable():
-    """Turn the enrollment mode off and load only the real vectors again."""
+def _mark_event_closed(course_id):
+    """Keep date and hours. closed stops the camera from opening this event again."""
+    reference = db.collection("courses").document(course_id)
+    snapshot = reference.get()
+    if not snapshot.exists:
+        return True
+    event = (snapshot.to_dict() or {}).get("event")
+    if not isinstance(event, dict) or event.get("closed") is True:
+        return True
+    reference.update({"event.closed": True})
+    return True
+
+
+def end_event(course_ids):
+    """Wipe temporary event data, mark those courses closed, and turn the mode off."""
     from face import reload_stored_gallery
 
+    if not wipe_event_data():
+        return False, "No se pudieron borrar los datos del evento."
+    try:
+        for course_id in course_ids:
+            if course_id and not _mark_event_closed(course_id):
+                return False, "No se pudo cerrar el evento."
+    except Exception as error:
+        print(f"[✖] No se pudo cerrar el evento: {error}")
+        return False, "No se pudo cerrar el evento."
     if not reload_stored_gallery():
         return False, "No se pudo volver a cargar los vectores reales."
     with _lock:
@@ -158,6 +180,11 @@ def disable():
     _publish_schedule()
     print("Modo evento apagado.")
     return True, ""
+
+
+def disable():
+    """Turn the enrollment mode off, wipe this event, and load only the real vectors."""
+    return end_event([_course_id()])
 
 
 def boot_from_env(classroom_name):
@@ -185,11 +212,12 @@ def boot_from_env(classroom_name):
 
 
 def wipe_event_data():
-    """Delete event persons and sface-test vectors. Courses and attendance stay."""
+    """Delete event persons, sface-test vectors, and temporary legal rows. Courses stay."""
     from face import clear_capture
 
     removed_vectors = 0
     removed_people = 0
+    removed_legal = 0
     try:
         for snapshot in db.collection_group("vector").stream():
             fields = snapshot.to_dict() or {}
@@ -199,6 +227,18 @@ def wipe_event_data():
             removed_vectors += 1
     except Exception as error:
         print(f"[✖] No se pudieron borrar los vectores del evento: {error}")
+        return False
+
+    try:
+        for snapshot in db.collection_group("aceptacionesLegales").stream():
+            fields = snapshot.to_dict() or {}
+            if fields.get("event") is not True:
+                continue
+            snapshot.reference.delete()
+            removed_legal += 1
+    except Exception as error:
+        print(f"[✖] No se pudieron borrar los consentimientos del evento: {error}")
+        return False
 
     try:
         for snapshot in db.collection("person").where(filter=FieldFilter("event", "==", True)).stream():
@@ -213,8 +253,13 @@ def wipe_event_data():
             removed_people += 1
     except Exception as error:
         print(f"[✖] No se pudieron borrar las personas del evento: {error}")
+        return False
 
-    print(f"Datos de evento borrados: {removed_people} personas, {removed_vectors} vectores.")
+    print(
+        "Datos de evento borrados: "
+        f"{removed_people} personas, {removed_vectors} vectores, {removed_legal} consentimientos."
+    )
+    return True
 
 
 def _assistance_row(person_name):
@@ -290,6 +335,26 @@ def _legal_row(national_id, portal_only):
         .collection("aceptacionesLegales")
         .add(payload)
     )
+
+
+def grant_event_consent(national_id):
+    """Append a temporary biometric acceptance. The person and the previous row stay."""
+    if not enabled():
+        return False, "El modo evento está apagado."
+
+    national_id = str(national_id)
+    person = db.collection("person").document(national_id)
+    if not person.get().exists:
+        return False, "Esa cédula no existe."
+
+    person.collection("aceptacionesLegales").add({
+        "biometrico": True,
+        "datosPersonales": False,
+        "evento": "aceptacion_biometrico",
+        "event": True,
+        "fecha": datetime.now().astimezone(),
+    })
+    return True, ""
 
 
 def create_person(national_id, raw_name, portal_only):

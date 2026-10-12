@@ -1055,20 +1055,11 @@ form {
 
 .aviso-popup {
   position: relative;
+  padding-top: 64px;
 }
 
-.aviso-cerrar {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 50%;
-  background: #771C07;
-  color: white;
-  font-size: 18px;
-  cursor: pointer;
+.aviso-popup .aviso-texto {
+  margin-top: 0;
 }
 
 .aviso-texto {

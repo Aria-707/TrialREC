@@ -3,6 +3,7 @@ from datetime import datetime
 
 from schedule import (
     arrival_from_start,
+    event_finish_at,
     event_window_matches,
     next_occurrence,
     schedule_matches_classroom,
@@ -65,6 +66,13 @@ def test_event_window_opens_five_minutes_before_and_closes_at_end():
     assert schedule_matches_classroom(
         [EVENT_SLOT], "Lunes", "Monday", "10:00", "E-102",
     ) is None
+
+
+def test_closed_event_stays_shut_and_finish_is_the_next_minute():
+    closed = dict(EVENT_SLOT)
+    closed["closed"] = True
+    assert event_window_matches(closed, "2026-10-12", "10:00", "E-102") is None
+    assert event_finish_at("2026-10-12", "12:00") == datetime(2026, 10, 12, 12, 1)
 
 
 def test_event_clocks_need_an_end_after_the_start():

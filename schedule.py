@@ -206,7 +206,7 @@ def _stored_slot(raw, course_id, course_name, required_classroom):
 def _event_slot(course_data, course_id, course_name, required_classroom):
     """One-day event. A weekly schedule is a different slot."""
     raw = course_data.get("event")
-    if not isinstance(raw, dict):
+    if not isinstance(raw, dict) or raw.get("closed") is True:
         return None
     classroom_name = (raw.get("classroom") or "").strip()
     if classroom_name != required_classroom:
@@ -242,7 +242,7 @@ def _minutes(text):
 
 def event_window_matches(slot, today, current_time, required_classroom):
     """Start time when this event is open today. The window ends at endTime."""
-    if not slot.get("event"):
+    if not slot.get("event") or slot.get("closed") is True:
         return None
     if (slot.get("classroom") or "").strip() != required_classroom:
         return None
@@ -257,6 +257,32 @@ def event_window_matches(slot, today, current_time, required_classroom):
     if start - MINUTES_BEFORE_START <= current <= end:
         return slot.get("iniTime")
     return None
+
+
+def event_finish_at(date_text, end_text):
+    """First minute after endTime. The window stays open through the end minute."""
+    day = datetime.strptime(str(date_text), "%Y-%m-%d")
+    hour, minute = (int(part) for part in str(end_text).split(":"))
+    return day.replace(hour=hour, minute=minute, second=0, microsecond=0) + timedelta(minutes=1)
+
+
+def event_finish_moments(required_classroom, refresh=False):
+    """(course_id, finish_datetime) for each event in this classroom that is still open."""
+    found = []
+    seen = set()
+    for slot in load_classroom_slots(required_classroom, refresh=refresh):
+        if not slot.get("event") or slot.get("closed") is True:
+            continue
+        course_id = slot.get("course_id")
+        if not course_id or course_id in seen:
+            continue
+        seen.add(course_id)
+        try:
+            found.append((course_id, event_finish_at(slot.get("date"), slot.get("endTime"))))
+        except (TypeError, ValueError):
+            continue
+    found.sort(key=lambda item: item[1])
+    return found
 
 
 def event_close_for(required_classroom, course_id, today):

@@ -93,7 +93,7 @@
 
       <div id="aviso-evento" class="aviso-evento">
         <button type="button" class="btn-cerrar-modal" id="aviso-evento-x" aria-label="Cerrar">✖</button>
-        <p>Esta funcionalidad se usa principalmente para realizar demostraciones y pruebas, actualmente, por lo que te recordamos que todas las personas y datos biométricos nuevos que sean registrados durante el Modo Evento serán eliminados en el próximo reinicio del sistema; lo único que se mantendrá es el registro de asistencias generado.</p>
+        <p>Esta funcionalidad se usa principalmente para realizar demostraciones y pruebas, actualmente, por lo que te recordamos que todas las personas y datos biométricos nuevos que sean registrados durante el Modo Evento se eliminan al llegar la hora final, al apagar el modo, o en el próximo reinicio si el equipo se apagó antes; lo único que se mantendrá es el registro de asistencias generado.</p>
         <div class="config-modal-footer">
           <button type="button" class="btn-modal-confirmar" id="aviso-evento-cerrar">Entendido</button>
         </div>
@@ -157,7 +157,7 @@
 
   <div id="aviso-overlay" class="terminos-overlay">
     <div class="terminos-popup aviso-popup">
-      <button type="button" id="aviso-cerrar" class="aviso-cerrar" aria-label="Cerrar">X</button>
+      <button type="button" id="aviso-cerrar" class="btn-cerrar-modal" aria-label="Cerrar">✖</button>
       <p id="aviso-texto" class="aviso-texto"></p>
     </div>
   </div>
@@ -468,13 +468,17 @@
     const CONSENT_MESSAGE = 'Entendido, al no dar tu consentimiento, no tomaré tus datos. Recuerda hablar con tu profesor para que tu asistencia se tome de forma manual.';
     const ADMIN_MESSAGE = 'Un administrador tiene que registrarte antes de este alta. Pídele al profesor que tome tu asistencia de forma manual por esta ocasión.';
     const EVENT_BIO_MESSAGE = 'Tu usuario ya existe y tiene datos biométricos, serás registrado con dichos datos al evento. ¿Deseas tomar nuevos datos biométricos para este evento?';
+    const EVENT_TEMP_QUESTION = 'No autorizaste el reconocimiento facial. Durante este evento puedes ser reconocido con un permiso temporal. ¿Quieres que te reconozca solo en este evento?';
     const EVENT_PERMISSION_MESSAGE = 'Tu usuario no autorizó permisos para el reconocimiento facial. En este momento, este dispositivo se encuentra en modo evento, por lo que, para proteger tus datos, se mantendrán los permisos actuales. Si quieres autorizar permisos para reconocimiento facial, puedes hacerlo desde el portal web iniciando sesión o en tu próxima clase en un dispositivo que no esté en modo evento.';
+    const EVENT_KEEP_MESSAGE = 'Por seguridad, los datos biométricos de este evento y el permiso temporal se eliminan cuando el evento termina: al llegar la hora final, al apagar el modo, o en el próximo reinicio si el equipo se apaga antes. Vuelven los datos que ya tenías. La asistencia del evento se conserva.';
+    const EVENT_NEW_MESSAGE = 'Por seguridad, el usuario y los datos biométricos creados para este evento se eliminan cuando el evento termina: al llegar la hora final, al apagar el modo, o en el próximo reinicio si el equipo se apaga antes. La asistencia del evento se conserva.';
     const EVENT_PORTAL_MESSAGE = 'Entendido, no se tomarán tus datos para el reconocimiento facial, te gustaría que se creara un usuario para probar el portal web?';
     const EVENT_OTHER_ID_MESSAGE = 'Digita una cédula distinta para registrarte en el sistema.';
 
     let national_id = '';
     let notice_timer = null;
     let notice_leaves = true;
+    let notice_then = null;
 
     terms_accepted = false;
     accept_terms_checkbox.checked = false;
@@ -484,20 +488,27 @@
       accept_terms_button.disabled = !e.target.checked;
     });
 
-    function show_notice(text, leave = true) {
+    function show_notice(text, leave = true, then = null) {
       notice_leaves = leave;
+      notice_then = then;
       notice_text.textContent = text;
       notice_overlay.classList.add('active');
       clearTimeout(notice_timer);
-      if (leave) {
+      if (leave || then) {
         notice_timer = setTimeout(close_notice, 20000);
       }
     }
 
     function close_notice() {
       clearTimeout(notice_timer);
+      notice_overlay.classList.remove('active');
+      const next = notice_then;
+      notice_then = null;
+      if (next) {
+        next();
+        return;
+      }
       if (!notice_leaves) {
-        notice_overlay.classList.remove('active');
         capture_button.disabled = false;
         name_input.value = '';
         name_input.focus();
@@ -569,6 +580,8 @@
           return;
         }
         pending_new_person = false;
+        show_notice(EVENT_NEW_MESSAGE, false, () => start_capture());
+        return;
       }
       start_capture();
     });
@@ -686,13 +699,24 @@
         return;
       }
       if (data.biometrico !== true) {
-        show_notice(EVENT_PERMISSION_MESSAGE);
+        ask_choice('Permiso temporal', EVENT_TEMP_QUESTION, () => {
+          show_notice(EVENT_KEEP_MESSAGE, false, async () => {
+            const granted = await post_event('/api/event_consent', { national_id: national_id });
+            if (!granted || !(await link_event_person(data.name))) {
+              return;
+            }
+            terms_accepted = true;
+            start_capture();
+          });
+        }, () => {
+          show_notice(EVENT_PERMISSION_MESSAGE);
+        });
         return;
       }
       ask_choice('Datos biométricos', EVENT_BIO_MESSAGE, async () => {
         if (await link_event_person(data.name)) {
           terms_accepted = true;
-          start_capture();
+          show_notice(EVENT_KEEP_MESSAGE, false, () => start_capture());
         }
       }, async () => {
         if (await link_event_person(data.name)) {

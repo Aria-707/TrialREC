@@ -32,6 +32,7 @@ POST_PATHS = (
     "/api/event_mode",
     "/api/event_person",
     "/api/event_link",
+    "/api/event_consent",
 )
 
 

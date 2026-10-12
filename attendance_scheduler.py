@@ -1,10 +1,11 @@
 """Create the day's attendance documents shortly before class starts."""
+import os
 import threading
 from datetime import datetime, timedelta
 
 from config import SCHEDULER_LOOKAHEAD_MINUTES
 from firebase_config import db
-from schedule import upcoming_starts
+from schedule import event_finish_moments, upcoming_starts
 
 # One extra minute so the read and the write finish before the 6-minute mark.
 WAKE_BEFORE_MINUTES = SCHEDULER_LOOKAHEAD_MINUTES + 1
@@ -121,7 +122,19 @@ def scheduled_task(classroom_callback):
                 continue
 
             print(f"\n🔔 [{now.strftime('%Y-%m-%d %H:%M:%S')}] Confirmando horario de {classroom_name}...")
-            starts = upcoming_starts(classroom_name, now, refresh=True)
+            ends = event_finish_moments(classroom_name, refresh=True)
+            due_ids = [course_id for course_id, when in ends if when <= now]
+            future_ends = [when for _, when in ends if when > now]
+            serving = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+            if due_ids and serving:
+                import event_mode
+                closed, message = event_mode.end_event(due_ids)
+                if not closed:
+                    print(f"   ⚠️ {message} Reintento en 60 segundos.")
+                    _sleep_until_next(60)
+                    continue
+
+            starts = upcoming_starts(classroom_name, now, refresh=False)
             now_minute = now.replace(second=0, microsecond=0)
             due = []
             later = []
@@ -145,12 +158,17 @@ def scheduled_task(classroom_callback):
             else:
                 following = later
 
-            if not following:
+            wake_candidates = []
+            if following:
+                wake_candidates.append(following[0][1] - timedelta(minutes=WAKE_BEFORE_MINUTES))
+            if future_ends:
+                wake_candidates.append(future_ends[0])
+            if not wake_candidates:
                 print("   ℹ️ No hay una clase posterior. Reintento en 60 segundos.")
                 _sleep_until_next(60)
                 continue
 
-            wake_at = following[0][1] - timedelta(minutes=WAKE_BEFORE_MINUTES)
+            wake_at = min(wake_candidates)
             seconds = (wake_at - datetime.now()).total_seconds()
             if seconds < 1:
                 seconds = 1
