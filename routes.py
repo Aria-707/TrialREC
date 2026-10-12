@@ -34,6 +34,9 @@ from firebase_config import db
 from schedule import (
     active_course_for_classroom,
     available_classrooms,
+    course_name_for,
+    milliseconds_until_countdown,
+    milliseconds_until_window_end,
     next_course,
 )
 
@@ -364,11 +367,6 @@ def save_photo():
             else:
                 print(f"⚠️ No se pudo encriptar la imagen {file_path}")
 
-            log_event(
-                "REGISTRO_DATOS_BIOMETRICOS",
-                "Captura de imagen facial para el alta",
-                user=national_id,
-            )
             return jsonify({
                 "ok": True,
                 "path": file_path,
@@ -461,6 +459,12 @@ def train():
         print(f"   • Modelo guardado en: {model_path}")
         print(f"{'='*60}\n")
 
+        log_event(
+            "REGISTRO_DATOS_BIOMETRICOS",
+            "Alta de datos biométricos",
+            user=national_id,
+            extra={"imagenes": len(image_files)},
+        )
         return jsonify({
             "success": True,
             "message": f"Modelo entrenado con {len(image_files)} imágenes",
@@ -528,25 +532,27 @@ def api_active_course():
 
         course_id, start_time = active_course_for_classroom(required_classroom=classroom_name)
         if course_id:
-            course_doc = db.collection("courses").document(course_id).get()
-            if course_doc.exists:
-                course_data = course_doc.to_dict()
-                return jsonify({
-                    "course_active": True,
-                    "classroom_configured": True,
-                    "course_id": course_id,
-                    "start_time": start_time,
-                    "classroom": classroom_name,
-                    "course_name": course_data.get("nameCourse", "Sin nombre"),
-                }), 200
+            return jsonify({
+                "course_active": True,
+                "classroom_configured": True,
+                "course_id": course_id,
+                "start_time": start_time,
+                "classroom": classroom_name,
+                "course_name": course_name_for(classroom_name, course_id),
+                "milliseconds_until_window_end": milliseconds_until_window_end(start_time),
+            }), 200
 
         upcoming = next_course(classroom_name)
-        return jsonify({
+        payload = {
             "course_active": False,
             "classroom_configured": True,
             "classroom": classroom_name,
             "next_course": upcoming,
-        }), 200
+        }
+        if not upcoming:
+            wait_ms = milliseconds_until_countdown(classroom_name)
+            payload["milliseconds_until_next_check"] = 60000 if wait_ms is None else wait_ms
+        return jsonify(payload), 200
 
     except Exception as error:
         print(f"[✖] ERROR en /api/active_course al consultar el horario del salón: {error}")

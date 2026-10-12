@@ -4,6 +4,12 @@ import os
 from constants import CLASSROOM_CONFIG_FILE
 
 configured_classroom = None
+_listeners = []
+
+
+def on_classroom_change(callback):
+    """Run after the saved classroom changes. The scheduler uses this to wake."""
+    _listeners.append(callback)
 
 
 def classroom_for_scheduler():
@@ -43,6 +49,10 @@ def set_classroom(classroom_name):
     try:
         configured_classroom = classroom_name.strip()
         save_classroom(configured_classroom)
+        from schedule import forget_classroom_slots
+        forget_classroom_slots()
+        for callback in list(_listeners):
+            callback(configured_classroom)
         print(f"\n✅ SALÓN CONFIGURADO: '{configured_classroom}'")
         return True
     except Exception as error:

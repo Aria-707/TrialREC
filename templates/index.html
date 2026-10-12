@@ -227,7 +227,7 @@
 
     let available_classrooms = [];
     let is_admin = false;
-    let check_interval = null;
+    let next_check_timer = null;
     let countdown_interval = null;
     let frame_interval = null;
     let current_mode = null;
@@ -236,7 +236,27 @@
     // ============================================
     // VERIFICACIÓN DE CURSO ACTIVO
     // ============================================
+    function clear_next_check() {
+      if (next_check_timer) {
+        clearTimeout(next_check_timer);
+        next_check_timer = null;
+      }
+    }
+
+    function schedule_next_check(milliseconds) {
+      clear_next_check();
+      const delay = Number(milliseconds);
+      if (!Number.isFinite(delay) || delay < 0) {
+        return;
+      }
+      next_check_timer = setTimeout(() => {
+        next_check_timer = null;
+        check_active_course();
+      }, Math.max(delay, 1000));
+    }
+
     async function check_active_course() {
+      clear_next_check();
       try {
         const response = await fetch('/api/active_course');
         const data = await response.json();
@@ -244,29 +264,29 @@
         console.log('Estado del sistema:', data);
 
         if (data.course_active) {
-          // MODO 4: HAY CURSO ACTIVO - Reconocimiento
           if (current_mode !== 'recognition') {
             console.log('✅ Activando modo RECONOCIMIENTO');
             show_recognition();
           }
+          schedule_next_check(data.milliseconds_until_window_end);
         } else if (data.next_course) {
-          // MODO 3: Hay curso próximo (≤5 min) - Contador
           if (current_mode !== 'countdown_wait') {
             console.log('⏰ Activando modo ESPERA CON CONTADOR');
             show_countdown_wait(data.next_course);
           } else {
-            // Ya estamos en contador, solo actualizar
             update_next_course(data.next_course);
+            start_countdown(data.next_course);
           }
         } else {
-          // MODO 2: No hay cursos próximos - Espera simple
           if (current_mode !== 'simple_wait') {
             console.log('⏸️ Activando modo ESPERA SIMPLE');
             show_simple_wait();
           }
+          schedule_next_check(data.milliseconds_until_next_check ?? 60000);
         }
       } catch (error) {
         console.error('Error verificando curso activo:', error);
+        schedule_next_check(60000);
       }
     }
 
@@ -681,9 +701,7 @@
       await load_current_classroom();
       await check_active_course();
 
-      check_interval = setInterval(check_active_course, 30000);
-
-      console.log('🚀 Sistema iniciado - Verificación automática cada 30s');
+      console.log('🚀 Sistema iniciado');
     }
 
     start_kiosk();

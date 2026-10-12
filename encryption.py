@@ -44,10 +44,16 @@ def load_or_create_key():
     return key, salt
 
 
+_fernet = None
+
+
 def cipher():
-    """Fernet object. The salt is stored and is not used to decrypt."""
-    key, _salt = load_or_create_key()
-    return Fernet(key)
+    """Fernet object, loaded once from the existing key. The salt is not used to decrypt."""
+    global _fernet
+    if _fernet is None:
+        key, _salt = load_or_create_key()
+        _fernet = Fernet(key)
+    return _fernet
 
 
 def encrypt_file(file_path):
