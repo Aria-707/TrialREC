@@ -197,7 +197,7 @@ def recognize():
         print(f"Error en /recognize al procesar el fotograma: {error}")
         import traceback
         traceback.print_exc()
-        return jsonify({"status": "error", "message": str(error)}), 500
+        return jsonify({"status": "error", "message": "No se pudo reconocer."}), 500
 
 
 @app.route("/detect_face", methods=["POST"])
@@ -226,7 +226,7 @@ def detect_face_route():
 
     except Exception as error:
         print(f"Error en /detect_face al revisar el fotograma de alta: {error}")
-        return jsonify({"face_detected": False, "error": str(error)}), 200
+        return jsonify({"face_detected": False, "error": "No se pudo revisar el rostro."}), 200
 
 
 def _national_id_from_request(data):
@@ -298,7 +298,7 @@ def save_photo():
             os.makedirs(person_path, exist_ok=True)
         except Exception as error:
             print(f"❌ Error creando la carpeta {person_path}: {error}")
-            return jsonify({"ok": False, "error": f"Error creando carpeta: {str(error)}"}), 500
+            return jsonify({"ok": False, "error": "No se pudo guardar la foto."}), 500
 
         try:
             if "," in photo_b64:
@@ -310,7 +310,7 @@ def save_photo():
                 return jsonify({"ok": False, "error": "Imagen inválida"}), 400
         except Exception as error:
             print(f"❌ Error decodificando la foto de alta: {error}")
-            return jsonify({"ok": False, "error": f"Error decodificando: {str(error)}"}), 500
+            return jsonify({"ok": False, "error": "No se pudo guardar la foto."}), 500
 
         timestamp = int(time.time() * 1000000)
         file_path = os.path.join(person_path, f"face_{timestamp}.jpg")
@@ -328,7 +328,7 @@ def save_photo():
             method = "yunet"
             success = cv2.imwrite(file_path, found["aligned"])
             if not success or not os.path.exists(file_path):
-                return jsonify({"ok": False, "error": "Error al guardar archivo"}), 500
+                return jsonify({"ok": False, "error": "No se pudo guardar la foto."}), 500
 
             file_size = os.path.getsize(file_path)
             print(f"✅ Foto guardada: {file_size} bytes ({capture_type})")
@@ -349,13 +349,13 @@ def save_photo():
             print(f"❌ Error guardando la foto de alta: {error}")
             import traceback
             traceback.print_exc()
-            return jsonify({"ok": False, "error": f"Error guardando: {str(error)}"}), 500
+            return jsonify({"ok": False, "error": "No se pudo guardar la foto."}), 500
 
     except Exception as error:
         print(f"❌ ERROR GENERAL guardando la foto de alta: {error}")
         import traceback
         traceback.print_exc()
-        return jsonify({"ok": False, "error": f"Error general: {str(error)}"}), 500
+        return jsonify({"ok": False, "error": "No se pudo guardar la foto."}), 500
 
 
 @app.route("/train", methods=["POST"])
@@ -448,7 +448,7 @@ def train():
         print(f"✖ ERROR EN ENTRENAMIENTO: {error}")
         import traceback
         traceback.print_exc()
-        return jsonify({"success": False, "error": str(error)}), 500
+        return jsonify({"success": False, "error": "No se pudo completar el registro."}), 500
 
 
 @app.route("/test_course")
@@ -535,7 +535,7 @@ def api_active_course():
         print(f"[✖] ERROR en /api/active_course al consultar el horario del salón: {error}")
         import traceback
         traceback.print_exc()
-        return jsonify({"course_active": False, "error": str(error)}), 500
+        return jsonify({"course_active": False, "error": "No se pudo consultar el horario."}), 500
 
 
 @app.route("/setup")
@@ -552,7 +552,7 @@ def api_classrooms():
         return jsonify({"success": True, "classrooms": classrooms, "total": len(classrooms)}), 200
     except Exception as error:
         print(f"[✖] ERROR en /api/classrooms al leer los salones de courses: {error}")
-        return jsonify({"success": False, "error": str(error)}), 500
+        return jsonify({"success": False, "error": "No se pudieron cargar los salones."}), 500
 
 
 @app.route("/api/event_mode", methods=["GET"])
@@ -646,11 +646,11 @@ def api_set_classroom():
                 "classroom": classroom_name,
                 "message": f"Salón configurado: {classroom_name}",
             }), 200
-        return jsonify({"success": False, "error": "Error al configurar salón"}), 500
+        return jsonify({"success": False, "error": "No se pudo guardar el salón."}), 500
 
     except Exception as error:
         print(f"[✖] ERROR en /api/set_classroom al guardar el salón: {error}")
-        return jsonify({"success": False, "error": str(error)}), 500
+        return jsonify({"success": False, "error": "No se pudo guardar el salón."}), 500
 
 
 @app.route("/api/current_classroom", methods=["GET"])
@@ -664,7 +664,8 @@ def api_current_classroom():
             "configured": classroom_name is not None,
         }), 200
     except Exception as error:
-        return jsonify({"success": False, "error": str(error)}), 500
+        print(f"[✖] ERROR en /api/current_classroom: {error}")
+        return jsonify({"success": False, "error": "No se pudo leer el salón."}), 500
 
 
 @app.route("/api/clear_recognitions", methods=["POST"])
@@ -678,7 +679,8 @@ def api_clear_recognitions():
         print("   Se reintentará el registro de asistencia")
         return jsonify({"success": True, "message": "Registros limpiados correctamente"}), 200
     except Exception as error:
-        return jsonify({"success": False, "error": str(error)}), 500
+        print(f"[✖] ERROR en /api/clear_recognitions: {error}")
+        return jsonify({"success": False, "error": "No se pudieron limpiar los registros."}), 500
 
 
 @app.route("/firebase-config")

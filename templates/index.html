@@ -124,7 +124,7 @@
       <div class="faq-body">
         <div class="faq-item">
           <h3>¿Qué hacer si el sistema no me reconoce?</h3>
-          <p>Asegúrate de estar bien iluminado, mirar directamente a la cámara y estar a una distancia adecuada. Si el problema persiste, ingresa a clase e informa al docente del fallo en el sistema para que modifique tu asistencia.</p>
+          <p>Asegúrate de estar bien iluminado, mirar directamente a la cámara y estar a una distancia adecuada. Si el problema persiste, puedes presionar el botón Registrar nuevo estudiante y volver a capturar tu rostro; o informar al docente del fallo en el sistema para que modifique tu asistencia.</p>
         </div>
 
         <div class="faq-item">
@@ -218,7 +218,7 @@
   <script src="{{ url_for('static', filename='event_panel.js') }}"></script>
   <script type="module">
     import { init_firebase } from "/static/firebaseCred.js";
-    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
     // Inicializar Firebase
     let auth;
@@ -546,16 +546,11 @@
           document.getElementById('admin-step').style.display = 'block';
           window.show_event_salon_tab();
         } else {
-          throw new Error('No tienes permisos de administrador');
+          await signOut(auth);
+          throw new Error('rejected');
         }
       } catch (error) {
-        let error_text = '';
-        if (error.code === 'auth/user-not-found') error_text = 'Usuario no encontrado';
-        else if (error.code === 'auth/wrong-password') error_text = 'Contraseña incorrecta';
-        else if (error.code === 'auth/invalid-email') error_text = 'Correo inválido';
-        else error_text = error.message;
-
-        modal_error.textContent = error_text;
+        modal_error.textContent = 'Correo o contraseña incorrectos.';
         modal_error.style.display = 'block';
         check_admin_button.disabled = false;
         check_admin_button.textContent = 'Verificar';
@@ -611,7 +606,7 @@
         await check_active_course();
 
       } catch (error) {
-        alert('Error: ' + error.message);
+        alert('No se pudo guardar el salón.');
         confirm_classroom_button.disabled = false;
         confirm_classroom_button.textContent = 'Confirmar';
       }

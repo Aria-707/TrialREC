@@ -88,6 +88,7 @@ document.getElementById("btn-modo-confirmar").addEventListener("click", async ()
 
   button.disabled = true;
   mode_error.style.display = "none";
+  let notice = "No se pudo guardar el modo.";
   try {
     const response = await fetch("/api/event_mode", {
       method: "POST",
@@ -95,21 +96,25 @@ document.getElementById("btn-modo-confirmar").addEventListener("click", async ()
       body: JSON.stringify(body),
     });
     const data = await response.json();
-    if (!response.ok || data.ok === false) {
-      throw new Error(data.error || "No se pudo guardar el modo.");
+    if (response.ok && data.ok !== false) {
+      publish_event_mode(data.enabled === true);
+      if (turning_on) {
+        reminder.style.display = "flex";
+      } else {
+        document.getElementById("config-modal").classList.remove("active");
+      }
+      return;
     }
-    publish_event_mode(data.enabled === true);
-    if (turning_on) {
-      reminder.style.display = "flex";
-    } else {
-      document.getElementById("config-modal").classList.remove("active");
+    if (data.error) {
+      notice = data.error;
     }
   } catch (error) {
-    mode_error.textContent = error.message;
-    mode_error.style.display = "block";
+    notice = "No se pudo guardar el modo.";
   } finally {
     button.disabled = false;
   }
+  mode_error.textContent = notice;
+  mode_error.style.display = "block";
 });
 
 fetch("/api/event_mode")

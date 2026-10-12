@@ -207,7 +207,7 @@
   <script src="{{ url_for('static', filename='event_panel.js') }}"></script>
   <script type="module">
     import { init_firebase } from "/static/firebaseCred.js";
-    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 
     // Inicializar Firebase
     let auth;
@@ -351,16 +351,11 @@
           document.getElementById('admin-step').style.display = 'block';
           window.show_event_salon_tab();
         } else {
-          throw new Error('No tienes permisos de administrador');
+          await signOut(auth);
+          throw new Error('rejected');
         }
       } catch (error) {
-        let error_text = '';
-        if (error.code === 'auth/user-not-found') error_text = 'Usuario no encontrado';
-        else if (error.code === 'auth/wrong-password') error_text = 'Contraseña incorrecta';
-        else if (error.code === 'auth/invalid-email') error_text = 'Correo inválido';
-        else error_text = error.message;
-
-        modal_error.textContent = error_text;
+        modal_error.textContent = 'Correo o contraseña incorrectos.';
         modal_error.style.display = 'block';
         check_admin_button.disabled = false;
         check_admin_button.textContent = 'Verificar';
@@ -414,7 +409,7 @@
         }, 1000);
 
       } catch (error) {
-        alert('Error: ' + error.message);
+        alert('No se pudo guardar el salón.');
         confirm_classroom_button.disabled = false;
         confirm_classroom_button.textContent = 'Confirmar';
       }
@@ -880,7 +875,7 @@
         console.error('Error en entrenamiento:', e);
         progress_text.textContent = 'Error en el entrenamiento';
         progress_text.style.color = '#771C07';
-        result_label.textContent = 'Error: ' + e.message;
+        result_label.textContent = 'No se pudo completar el registro.';
         result_label.style.color = '771C07';
 
         capture_button.disabled = false;

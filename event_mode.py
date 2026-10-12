@@ -174,7 +174,7 @@ def end_event(course_ids):
         print(f"[✖] No se pudo cerrar el evento: {error}")
         return False, "No se pudo cerrar el evento."
     if not reload_stored_gallery():
-        return False, "No se pudo volver a cargar los vectores reales."
+        return False, "No se pudo apagar el modo. Intenta de nuevo."
     with _lock:
         _state["enabled"] = False
     _publish_schedule()
