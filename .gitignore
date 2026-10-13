@@ -12,3 +12,4 @@ classroom_config.txt
 
 audit_log.json
 GUIA_DEL_SISTEMA.md
+*.conf

@@ -95,8 +95,51 @@ def _sleep_until_next(seconds):
     return interrupted
 
 
-def scheduled_task(classroom_callback):
-    """Sleep until 7 minutes before the next class, then create that day's list."""
+def _watch_classroom(classroom_name, now, serving):
+    """Create due lists for one classroom. Returns (ok, next_wake or None, message)."""
+    ends = event_finish_moments(classroom_name, refresh=True)
+    due_ids = [course_id for course_id, when in ends if when <= now]
+    future_ends = [when for _, when in ends if when > now]
+    if due_ids and serving:
+        import event_mode
+        closed, message = event_mode.end_event(due_ids)
+        if not closed:
+            return False, None, message
+
+    starts = upcoming_starts(classroom_name, now, refresh=False)
+    now_minute = now.replace(second=0, microsecond=0)
+    due = []
+    later = []
+    for course_id, when in starts:
+        minutes_until = (when - now_minute).total_seconds() / 60
+        if 0 <= minutes_until <= WAKE_BEFORE_MINUTES:
+            due.append((course_id, when))
+        elif minutes_until > WAKE_BEFORE_MINUTES:
+            later.append((course_id, when))
+
+    created = set()
+    for course_id, when in due:
+        if course_id in created:
+            continue
+        created.add(course_id)
+        create_attendance_document(course_id, when.strftime("%Y-%m-%d"))
+
+    if due:
+        after_these = max(when for _, when in due) + timedelta(minutes=1)
+        following = upcoming_starts(classroom_name, after_these, refresh=False)
+    else:
+        following = later
+
+    wake_candidates = []
+    if following:
+        wake_candidates.append(following[0][1] - timedelta(minutes=WAKE_BEFORE_MINUTES))
+    if future_ends:
+        wake_candidates.append(future_ends[0])
+    return True, (min(wake_candidates) if wake_candidates else None), ""
+
+
+def scheduled_task(classrooms_callback):
+    """Sleep until 7 minutes before the next class of any watched classroom."""
     print("\n" + "="*70)
     print("🚀 SCHEDULER DE ASISTENCIA INICIADO")
     print("="*70)
@@ -114,55 +157,29 @@ def scheduled_task(classroom_callback):
                 clear_old_initialized_documents()
                 last_cleanup = now.date()
 
-            classroom_name = classroom_callback()
-            if not classroom_name:
+            classrooms = [name for name in (classrooms_callback() or []) if name]
+            if not classrooms:
                 print("   ⚠️ No hay salón configurado. Reintento en 60 segundos.")
                 if _sleep_until_next(60):
                     continue
                 continue
 
-            print(f"\n🔔 [{now.strftime('%Y-%m-%d %H:%M:%S')}] Confirmando horario de {classroom_name}...")
-            ends = event_finish_moments(classroom_name, refresh=True)
-            due_ids = [course_id for course_id, when in ends if when <= now]
-            future_ends = [when for _, when in ends if when > now]
-            serving = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
-            if due_ids and serving:
-                import event_mode
-                closed, message = event_mode.end_event(due_ids)
-                if not closed:
-                    print(f"   ⚠️ {message} Reintento en 60 segundos.")
-                    _sleep_until_next(60)
-                    continue
-
-            starts = upcoming_starts(classroom_name, now, refresh=False)
-            now_minute = now.replace(second=0, microsecond=0)
-            due = []
-            later = []
-            for course_id, when in starts:
-                minutes_until = (when - now_minute).total_seconds() / 60
-                if 0 <= minutes_until <= WAKE_BEFORE_MINUTES:
-                    due.append((course_id, when))
-                elif minutes_until > WAKE_BEFORE_MINUTES:
-                    later.append((course_id, when))
-
-            created = set()
-            for course_id, when in due:
-                if course_id in created:
-                    continue
-                created.add(course_id)
-                create_attendance_document(course_id, when.strftime("%Y-%m-%d"))
-
-            if due:
-                after_these = max(when for _, when in due) + timedelta(minutes=1)
-                following = upcoming_starts(classroom_name, after_these, refresh=False)
-            else:
-                following = later
-
+            print(f"\n🔔 [{now.strftime('%Y-%m-%d %H:%M:%S')}] Confirmando horario...")
+            serving = os.environ.get("WERKZEUG_RUN_MAIN") == "true" or os.environ.get("KIOSK_DEBUG", "").strip().lower() not in ("1", "true", "si", "sí", "yes")
             wake_candidates = []
-            if following:
-                wake_candidates.append(following[0][1] - timedelta(minutes=WAKE_BEFORE_MINUTES))
-            if future_ends:
-                wake_candidates.append(future_ends[0])
+            failed = False
+            for classroom_name in classrooms:
+                print(f"   Salón: {classroom_name}")
+                ok, wake_at_room, message = _watch_classroom(classroom_name, now, serving)
+                if not ok:
+                    print(f"   ⚠️ {message} Reintento en 60 segundos.")
+                    failed = True
+                    break
+                if wake_at_room is not None:
+                    wake_candidates.append(wake_at_room)
+            if failed:
+                _sleep_until_next(60)
+                continue
             if not wake_candidates:
                 print("   ℹ️ No hay una clase posterior. Reintento en 60 segundos.")
                 _sleep_until_next(60)

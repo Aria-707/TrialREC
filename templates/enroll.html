@@ -250,6 +250,10 @@
     let detection_interval = null;
     let available_classrooms = [];
     let is_admin = false;
+    let admin_token = "";
+    window.kioskAdminHeaders = function () {
+      return admin_token ? { Authorization: "Bearer " + admin_token } : {};
+    };
     let terms_accepted = false;
 
     // ============================================
@@ -280,7 +284,7 @@
     // CARGAR LISTA DE SALONES
     async function load_classrooms() {
       try {
-        const response = await fetch('/api/classrooms');
+        const response = await fetch('/api/classrooms', { headers: window.kioskAdminHeaders() });
         const data = await response.json();
 
         if (data.success && data.classrooms) {
@@ -342,6 +346,7 @@
 
         if (idTokenResult.claims && idTokenResult.claims.admin === true) {
           is_admin = true;
+          admin_token = await user.getIdToken();
 
           if (available_classrooms.length === 0) {
             await load_classrooms();
@@ -351,6 +356,7 @@
           document.getElementById('admin-step').style.display = 'block';
           window.show_event_salon_tab();
         } else {
+          admin_token = "";
           await signOut(auth);
           throw new Error('rejected');
         }
@@ -388,7 +394,7 @@
       try {
         const response = await fetch('/api/set_classroom', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...window.kioskAdminHeaders() },
           body: JSON.stringify({ classroom: selected_classroom })
         });
 

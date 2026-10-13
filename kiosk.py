@@ -3,10 +3,13 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
-from config import BFF_HOST, BFF_PORT, RECOGNITION_HOST, RECOGNITION_PORT
+from werkzeug.serving import make_server
+
+from config import BFF_PORT, RECOGNITION_HOST, RECOGNITION_PORT, WIREGUARD_HOST
 
 ROOT = Path(__file__).resolve().parent
 
@@ -41,7 +44,7 @@ def main():
     print("\n" + "=" * 60, flush=True)
     print("🚀 INICIANDO KIOSCO EN DOS PROCESOS", flush=True)
     print("=" * 60, flush=True)
-    print(f"BFF: http://{BFF_HOST}:{BFF_PORT}", flush=True)
+    print(f"BFF: http://127.0.0.1:{BFF_PORT}", flush=True)
     print(f"Reconocimiento: http://{RECOGNITION_HOST}:{RECOGNITION_PORT}", flush=True)
     print("=" * 60 + "\n", flush=True)
 
@@ -67,7 +70,23 @@ def main():
 
         import bff
 
-        bff.app.run(debug=True, host=BFF_HOST, port=BFF_PORT, use_reloader=False)
+        local = make_server("127.0.0.1", BFF_PORT, bff.app, threaded=True)
+        threading.Thread(target=local.serve_forever, daemon=True).start()
+        private_host = WIREGUARD_HOST
+        if private_host and private_host not in ("127.0.0.1", "localhost"):
+            try:
+                private = make_server(private_host, BFF_PORT, bff.app, threaded=True)
+            except OSError:
+                print(
+                    "La dirección privada no está disponible. "
+                    f"El kiosco sigue en http://127.0.0.1:{BFF_PORT}"
+                )
+                threading.Event().wait()
+            else:
+                print(f"Túnel: http://{private_host}:{BFF_PORT}", flush=True)
+                private.serve_forever()
+        else:
+            threading.Event().wait()
     finally:
         stop_recognition(recognition)
 

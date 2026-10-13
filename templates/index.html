@@ -262,6 +262,10 @@
 
     let available_classrooms = [];
     let is_admin = false;
+    let admin_token = "";
+    window.kioskAdminHeaders = function () {
+      return admin_token ? { Authorization: "Bearer " + admin_token } : {};
+    };
     let next_check_timer = null;
     let countdown_interval = null;
     let frame_interval = null;
@@ -397,38 +401,53 @@
       }
     }
 
+    function registration_is_due(next_course) {
+      const now = new Date();
+      const current_minutes = now.getHours() * 60 + now.getMinutes();
+      const [start_hour, start_minute] = next_course.start_time.split(':').map(Number);
+      const open_minutes = start_hour * 60 + start_minute - 5;
+      return current_minutes >= open_minutes;
+    }
+
+    function show_registration_soon() {
+      remaining_time_label.textContent = 'El registro comenzará en breve...';
+      remaining_time_label.classList.add('tiempo-restante-listo');
+    }
+
     function start_countdown(next_course) {
       stop_countdown();
 
+      if (registration_is_due(next_course)) {
+        show_registration_soon();
+        return;
+      }
+
+      remaining_time_label.classList.remove('tiempo-restante-listo');
+
       countdown_interval = setInterval(() => {
-        const now = new Date();
-        const current_minutes = now.getHours() * 60 + now.getMinutes();
-
-        const [start_hour, start_minute] = next_course.start_time.split(':').map(Number);
-        const class_start_minutes = start_hour * 60 + start_minute;
-
-        // El registro se abre 5 minutos ANTES
-        const open_minutes = class_start_minutes - 5;
-
-        let minutes_left = open_minutes - current_minutes;
-        let seconds_left = (60 - now.getSeconds()) % 60;
-
-        if (minutes_left < 0 || (minutes_left === 0 && seconds_left === 0)) {
-          remaining_time_label.textContent = '00:00';
+        if (registration_is_due(next_course)) {
+          show_registration_soon();
           stop_countdown();
           check_active_course();
           return;
         }
 
-        // Ajustar segundos
+        const now = new Date();
+        const current_minutes = now.getHours() * 60 + now.getMinutes();
+        const [start_hour, start_minute] = next_course.start_time.split(':').map(Number);
+        const open_minutes = start_hour * 60 + start_minute - 5;
+
+        let minutes_left = open_minutes - current_minutes;
+        let seconds_left = (60 - now.getSeconds()) % 60;
+
         if (seconds_left === 60) {
           seconds_left = 0;
         } else if (seconds_left > 0) {
           minutes_left -= 1;
         }
 
-        remaining_time_label.textContent = 
-          `${String(minutes_left).padStart(2, '0')}:${String(seconds_left).padStart(2, '0')}`;
+        remaining_time_label.textContent =
+          `${String(Math.max(minutes_left, 0)).padStart(2, '0')}:${String(seconds_left).padStart(2, '0')}`;
       }, 1000);
     }
 
@@ -478,7 +497,7 @@
 
     async function load_classrooms() {
       try {
-        const response = await fetch('/api/classrooms');
+        const response = await fetch('/api/classrooms', { headers: window.kioskAdminHeaders() });
         const data = await response.json();
 
         if (data.success && data.classrooms) {
@@ -537,6 +556,7 @@
 
         if (idTokenResult.claims && idTokenResult.claims.admin === true) {
           is_admin = true;
+          admin_token = await user.getIdToken();
 
           if (available_classrooms.length === 0) {
             await load_classrooms();
@@ -546,6 +566,7 @@
           document.getElementById('admin-step').style.display = 'block';
           window.show_event_salon_tab();
         } else {
+          admin_token = "";
           await signOut(auth);
           throw new Error('rejected');
         }
@@ -582,7 +603,7 @@
       try {
         const response = await fetch('/api/set_classroom', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...window.kioskAdminHeaders() },
           body: JSON.stringify({ classroom: selected_classroom })
         });
 

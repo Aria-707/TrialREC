@@ -106,13 +106,12 @@ def _fresh_course_id():
     raise RuntimeError("No se pudo crear un id para el evento")
 
 
-def enable(raw_name, ini_time, end_time):
+def enable(raw_name, ini_time, end_time, classroom_name):
     """Turn the mode on and write today's event on the course. Does not touch `.env`."""
-    from classroom import current_classroom
     from face import overlay_event_vectors
     from schedule import valid_event_clocks
 
-    classroom_name = (current_classroom() or "").strip()
+    classroom_name = (classroom_name or "").strip()
     if not classroom_name:
         return False, "Configura un salón antes de activar el modo evento."
 

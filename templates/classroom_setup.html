@@ -67,6 +67,10 @@ import { init_firebase } from "/static/firebaseCred.js";
   const admin_password_input = document.getElementById('admin-password');
 
   let is_admin = false;
+  let admin_token = "";
+  window.kioskAdminHeaders = function () {
+    return admin_token ? { Authorization: "Bearer " + admin_token } : {};
+  };
 
   async function check_admin() {
     const email = admin_email_input.value.trim();
@@ -91,10 +95,12 @@ import { init_firebase } from "/static/firebaseCred.js";
 
       if (idTokenResult.claims && idTokenResult.claims.admin === true) {
         is_admin = true;
+        admin_token = await user.getIdToken();
         auth_section.classList.add('hidden');
         loading_block.classList.remove('hidden');
         await load_classrooms();
       } else {
+        admin_token = "";
         await signOut(auth);
         throw new Error('rejected');
       }
@@ -108,7 +114,7 @@ import { init_firebase } from "/static/firebaseCred.js";
 
   async function load_classrooms() {
     try {
-      const response = await fetch('/api/classrooms');
+      const response = await fetch('/api/classrooms', { headers: window.kioskAdminHeaders() });
       const data = await response.json();
 
       if (!data.success) throw new Error(data.error || 'Error al cargar salones');
@@ -162,7 +168,7 @@ import { init_firebase } from "/static/firebaseCred.js";
     try {
       const response = await fetch('/api/set_classroom', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...window.kioskAdminHeaders() },
         body: JSON.stringify({ classroom: classroom_name })
       });
       const data = await response.json();

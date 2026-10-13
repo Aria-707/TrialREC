@@ -1,10 +1,13 @@
-"""Classroom selected for this kiosk, in memory and in classroom_config.txt."""
+"""Classrooms this server is watching. Each browser keeps its own in a cookie."""
 import os
+import threading
 
 from config import CLASSROOM_CONFIG_FILE
 
 configured_classroom = None
 _listeners = []
+_known = set()
+_known_lock = threading.Lock()
 
 
 def on_classroom_change(callback):
@@ -12,9 +15,29 @@ def on_classroom_change(callback):
     _listeners.append(callback)
 
 
+def note_classroom(classroom_name):
+    """Remember a classroom a browser is using. Wakes listeners only the first time."""
+    name = (classroom_name or "").strip()
+    if not name:
+        return False
+    with _known_lock:
+        if name in _known:
+            return False
+        _known.add(name)
+    for callback in list(_listeners):
+        callback(name)
+    return True
+
+
+def known_classrooms():
+    """Classrooms the scheduler should watch."""
+    with _known_lock:
+        return sorted(_known)
+
+
 def classroom_for_scheduler():
-    """Callback the scheduler uses to read the classroom."""
-    return current_classroom()
+    """Callback the scheduler uses to read the classrooms."""
+    return known_classrooms()
 
 
 def load_saved_classroom():
@@ -44,16 +67,13 @@ def save_classroom(classroom_name):
 
 
 def set_classroom(classroom_name):
-    """Set the active classroom and persist it."""
-    global configured_classroom
+    """Remember this classroom for the scheduler. The browser cookie is the source of truth."""
     try:
-        configured_classroom = classroom_name.strip()
-        save_classroom(configured_classroom)
+        name = classroom_name.strip()
+        note_classroom(name)
         from schedule import forget_classroom_slots
         forget_classroom_slots()
-        for callback in list(_listeners):
-            callback(configured_classroom)
-        print(f"\n✅ SALÓN CONFIGURADO: '{configured_classroom}'")
+        print(f"\n✅ SALÓN CONFIGURADO: '{name}'")
         return True
     except Exception as error:
         print(f"[✖] ERROR configurando el salón '{classroom_name}': {error}")

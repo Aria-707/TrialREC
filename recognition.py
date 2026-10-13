@@ -11,10 +11,10 @@ import classroom
 import consent
 import schedule
 import routes
-from config import RECOGNITION_HOST, RECOGNITION_PORT
+from config import KIOSK_DEBUG, RECOGNITION_HOST, RECOGNITION_PORT
 
 if __name__ == "__main__":
-    serving = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    serving = os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not KIOSK_DEBUG
     if serving:
         import event_mode
         event_mode.wipe_event_data()
@@ -31,6 +31,7 @@ if __name__ == "__main__":
 
     saved_classroom = classroom.load_saved_classroom()
     if saved_classroom:
+        classroom.note_classroom(saved_classroom)
         print(f"🏫 Salón configurado: {saved_classroom}")
     else:
         print("⚠️ No hay salón configurado")
@@ -51,4 +52,9 @@ if __name__ == "__main__":
         consent.start_listener()
         schedule.start_schedule_watch()
 
-    routes.app.run(debug=True, host=RECOGNITION_HOST, port=RECOGNITION_PORT)
+    routes.app.run(
+        debug=KIOSK_DEBUG,
+        host=RECOGNITION_HOST,
+        port=RECOGNITION_PORT,
+        use_reloader=KIOSK_DEBUG,
+    )

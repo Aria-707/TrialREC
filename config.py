@@ -71,10 +71,21 @@ if DEMO_MODE:
     if DEMO_END_TIME <= DEMO_INIT_TIME:
         raise RuntimeError("DEMO_END_TIME tiene que ser posterior a DEMO_INIT_TIME")
 
+def _flag_default(name, default=False):
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    return raw.lower() in ("1", "true", "si", "sí", "yes")
+
+
 BFF_HOST = _text("BFF_HOST")
 BFF_PORT = _int("BFF_PORT")
 RECOGNITION_HOST = _text("RECOGNITION_HOST")
 RECOGNITION_PORT = _int("RECOGNITION_PORT")
+KIOSK_HMAC_SECRET = _text("KIOSK_HMAC_SECRET")
+KIOSK_DEBUG = _flag_default("KIOSK_DEBUG", False)
+WIREGUARD_HOST = _optional("WIREGUARD_HOST")
+FERNET_KEY = _optional("FERNET_KEY")
 
 PHOTO_DIR_NAME = _text("PHOTO_DIR_NAME")
 VECTOR_PATH = _text("VECTOR_PATH")

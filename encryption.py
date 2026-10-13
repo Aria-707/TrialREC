@@ -8,11 +8,14 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from config import ENCRYPTION_KEY_FILE, ENCRYPTION_SALT_FILE, PHOTO_DIR_NAME
+from config import ENCRYPTION_KEY_FILE, ENCRYPTION_SALT_FILE, FERNET_KEY, PHOTO_DIR_NAME
 
 
 def load_or_create_key():
     """Load the existing key. A new key is created only when both files are missing."""
+    if FERNET_KEY:
+        print("✔ Clave de encriptación cargada desde el entorno")
+        return FERNET_KEY.encode("utf-8"), b""
     if os.path.exists(ENCRYPTION_KEY_FILE) and os.path.exists(ENCRYPTION_SALT_FILE):
         with open(ENCRYPTION_KEY_FILE, "rb") as handle:
             key = handle.read()

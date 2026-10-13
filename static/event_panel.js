@@ -92,7 +92,10 @@ document.getElementById("btn-modo-confirmar").addEventListener("click", async ()
   try {
     const response = await fetch("/api/event_mode", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: Object.assign(
+        { "Content-Type": "application/json" },
+        window.kioskAdminHeaders ? window.kioskAdminHeaders() : {},
+      ),
       body: JSON.stringify(body),
     });
     const data = await response.json();

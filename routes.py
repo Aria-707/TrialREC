@@ -8,11 +8,16 @@ from datetime import datetime
 import cv2
 import numpy as np
 from flask import Flask, jsonify, redirect, render_template, request, send_file
-from flask_cors import CORS
 
 from attendance import lookup_student, record_attendance
 from audit import log_event
-from classroom import current_classroom, load_saved_classroom, set_classroom
+from classroom import load_saved_classroom, note_classroom, set_classroom
+from kiosk_gate import (
+    CLASSROOM_HEADER,
+    SIGNATURE_HEADER,
+    TIME_HEADER,
+    signature_matches,
+)
 from consent import biometrico_is_true, has_legal_row, record_acceptance, sweep_before_class_frame
 from encryption import encrypt_file
 import event_mode
@@ -27,7 +32,6 @@ from face import (
     stored_vector,
     train_incrementally,
 )
-from firebase_config import db
 from schedule import (
     active_course_for_classroom,
     available_classrooms,
@@ -41,12 +45,23 @@ from schedule import (
 from vector_store import commit_event_vector, commit_vector_copy
 
 app = Flask(__name__)
-CORS(app)
 
-recognized_students = set()
-recognition_started_at = {}
+recognized_by_room = {}
+started_by_room = {}
 recognition_day = None
-previous_classroom = None
+
+
+def request_classroom():
+    """Classroom the page signed for this request."""
+    return (request.headers.get(CLASSROOM_HEADER) or "").strip()
+
+
+def _recognized(room):
+    return recognized_by_room.setdefault(room, set())
+
+
+def _started(room):
+    return started_by_room.setdefault(room, {})
 
 
 def forget_recognitions_from_other_days():
@@ -55,9 +70,27 @@ def forget_recognitions_from_other_days():
     today = datetime.now().strftime("%Y-%m-%d")
     if recognition_day == today:
         return
-    recognized_students.clear()
-    recognition_started_at.clear()
+    recognized_by_room.clear()
+    started_by_room.clear()
     recognition_day = today
+
+
+@app.before_request
+def require_page_signature():
+    """Reject anything that did not come from the page on this machine."""
+    if not signature_matches(
+        request.method,
+        request.path,
+        request.query_string.decode(),
+        request.get_data(),
+        request_classroom(),
+        request.headers.get(TIME_HEADER, ""),
+        request.headers.get(SIGNATURE_HEADER, ""),
+    ):
+        return jsonify({"error": "No se pudo atender el pedido."}), 403
+    room = request_classroom()
+    if room:
+        note_classroom(room)
 
 
 @app.route("/")
@@ -78,28 +111,18 @@ def enroll():
 
 @app.route("/recognize", methods=["POST"])
 def recognize():
-    """Live recognition. The classroom comes from memory, not from the request body."""
-    global recognized_students, recognition_started_at, previous_classroom
-
+    """Live recognition. The classroom comes from the signed request, not the body."""
     try:
         forget_recognitions_from_other_days()
-        classroom_name = current_classroom()
+        classroom_name = request_classroom()
         if not classroom_name:
             return jsonify({
                 "status": "error",
                 "message": "No hay salón configurado. Configura el salón primero.",
             }), 400
 
-        if previous_classroom is not None and previous_classroom != classroom_name:
-            print("\n🔄 CAMBIO DE SALÓN DETECTADO:")
-            print(f"   Anterior: '{previous_classroom}'")
-            print(f"   Nuevo: '{classroom_name}'")
-            print("   Limpiando registros previos...")
-            recognized_students.clear()
-            recognition_started_at.clear()
-            print("   ✅ Registros limpiados - se reintentará asistencia\n")
-
-        previous_classroom = classroom_name
+        recognized_students = _recognized(classroom_name)
+        recognition_started_at = _started(classroom_name)
 
         data = request.get_json()
         if not data or "image" not in data:
@@ -150,7 +173,9 @@ def recognize():
                     recorded = False
                     category = None
                     if biometrico_is_true(national_id):
-                        recorded, category = record_attendance(national_id, course_id, start_time)
+                        recorded, category = record_attendance(
+                            national_id, course_id, start_time, classroom_name,
+                        )
                         if recorded:
                             recognized_students.add(student_name)
                             log_event(
@@ -340,7 +365,6 @@ def save_photo():
 
             return jsonify({
                 "ok": True,
-                "path": file_path,
                 "capture_type": capture_type,
                 "method": method,
                 "size": file_size,
@@ -451,51 +475,11 @@ def train():
         return jsonify({"success": False, "error": "No se pudo completar el registro."}), 500
 
 
-@app.route("/test_course")
-def test_course():
-    """Dump the active course for this classroom. Still published."""
-    classroom_name = current_classroom()
-    if not classroom_name:
-        return jsonify({
-            "success": False,
-            "message": "No hay salón configurado",
-            "classroom": None,
-        })
-
-    course_id, start_time = active_course_for_classroom(required_classroom=classroom_name)
-    if not course_id:
-        return jsonify({
-            "success": False,
-            "message": f"No hay curso activo en salón '{classroom_name}'",
-            "course_id": None,
-            "start_time": None,
-            "classroom": classroom_name,
-        })
-
-    course_doc = db.collection("courses").document(course_id).get()
-    if course_doc.exists:
-        return jsonify({
-            "success": True,
-            "course_id": course_id,
-            "start_time": start_time,
-            "classroom": classroom_name,
-            "course": course_doc.to_dict(),
-            "message": f"Curso activo encontrado en {classroom_name}",
-        })
-
-    return jsonify({
-        "success": False,
-        "error": "Curso encontrado pero no existe en BD",
-        "course_id": course_id,
-        "classroom": classroom_name,
-    })
-
-
 @app.route("/api/active_course", methods=["GET"])
 def api_active_course():
     """Tell the screen whether to wait or open the camera."""
     try:
-        classroom_name = current_classroom()
+        classroom_name = request_classroom()
         if not classroom_name:
             return jsonify({
                 "course_active": False,
@@ -570,6 +554,7 @@ def api_set_event_mode():
             data.get("name", ""),
             data.get("ini_time", ""),
             data.get("end_time", ""),
+            request_classroom(),
         )
     else:
         ok, message = event_mode.disable()
@@ -631,6 +616,8 @@ def api_set_classroom():
         classroom_name = data.get("classroom", "").strip()
         if not classroom_name:
             return jsonify({"success": False, "error": "Nombre de salón requerido"}), 400
+        if classroom_name != request_classroom():
+            return jsonify({"success": False, "error": "No se pudo guardar el salón."}), 400
 
         known_classrooms = available_classrooms()
         if classroom_name not in known_classrooms:
@@ -657,7 +644,7 @@ def api_set_classroom():
 def api_current_classroom():
     """Return the classroom held in memory."""
     try:
-        classroom_name = current_classroom()
+        classroom_name = request_classroom()
         return jsonify({
             "success": True,
             "classroom": classroom_name,
@@ -670,11 +657,11 @@ def api_current_classroom():
 
 @app.route("/api/clear_recognitions", methods=["POST"])
 def api_clear_recognitions():
-    """Clear the in-memory recognized set. Called when the classroom changes."""
-    global recognized_students, recognition_started_at
+    """Clear in-memory hits for this browser's classroom."""
     try:
-        recognized_students.clear()
-        recognition_started_at.clear()
+        room = request_classroom()
+        recognized_by_room.pop(room, None)
+        started_by_room.pop(room, None)
         print("\n🧹 REGISTROS LIMPIADOS MANUALMENTE")
         print("   Se reintentará el registro de asistencia")
         return jsonify({"success": True, "message": "Registros limpiados correctamente"}), 200

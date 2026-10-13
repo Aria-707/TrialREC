@@ -1,7 +1,6 @@
 """Attendance writes."""
 from datetime import datetime
 
-from classroom import current_classroom
 from consent import biometrico_is_true, has_legal_row
 from firebase_config import db
 from schedule import active_course_for_classroom, arrival_from_start
@@ -28,16 +27,19 @@ def lookup_student(national_id):
     }
 
 
-def record_attendance(national_id, course_id=None, class_start=None):
+def record_attendance(national_id, course_id=None, class_start=None, classroom_name=None):
     """Change Ausente to Presente when this cédula is already on the class list.
 
     Returns (recorded, category). The category and the late flag share one clock reading.
     """
     try:
         national_id = str(national_id)
-        classroom_name = current_classroom()
+        classroom_name = (classroom_name or "").strip()
 
         if not course_id:
+            if not classroom_name:
+                print("[!] NO SE REGISTRA ASISTENCIA: No hay salón configurado")
+                return False, None
             course_id, class_start = active_course_for_classroom(required_classroom=classroom_name)
 
         if not course_id:

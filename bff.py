@@ -3,52 +3,79 @@ import urllib.error
 import urllib.request
 
 from flask import Flask, Response, redirect, render_template, request, send_file
-from flask_cors import CORS
 
-from classroom import load_saved_classroom
+from kiosk_gate import (
+    COOKIE_NAME,
+    dump_classroom_cookie,
+    read_classroom_cookie,
+    sign_forward,
+    token_is_admin,
+)
 from config import RECOGNITION_HOST, RECOGNITION_PORT
 
 app = Flask(__name__)
-CORS(app)
 
 RECOGNITION_ORIGIN = f"http://{RECOGNITION_HOST}:{RECOGNITION_PORT}"
 
-GET_PATHS = (
-    "/test_course",
-    "/api/active_course",
-    "/api/classrooms",
-    "/api/current_classroom",
-    "/api/event_mode",
+COOKIE_PATHS = (
+    ("GET", "/api/active_course"),
+    ("GET", "/api/current_classroom"),
+    ("GET", "/api/event_mode"),
+    ("POST", "/recognize"),
+    ("POST", "/detect_face"),
+    ("POST", "/save_photo"),
+    ("POST", "/train"),
+    ("POST", "/api/lookup_student"),
+    ("POST", "/api/begin_capture"),
+    ("POST", "/api/clear_recognitions"),
+    ("POST", "/api/event_person"),
+    ("POST", "/api/event_link"),
+    ("POST", "/api/event_consent"),
 )
-POST_PATHS = (
-    "/recognize",
-    "/detect_face",
-    "/save_photo",
-    "/train",
-    "/api/lookup_student",
-    "/api/begin_capture",
-    "/api/set_classroom",
-    "/api/clear_recognitions",
-    "/api/event_mode",
-    "/api/event_person",
-    "/api/event_link",
-    "/api/event_consent",
-)
+
+
+def _json(body, status):
+    return Response(body, status=status, content_type="application/json")
+
+
+def _classroom_cookie():
+    return read_classroom_cookie(request.cookies.get(COOKIE_NAME, ""))
+
+
+def _require_admin():
+    header = request.headers.get("Authorization", "")
+    token = header[7:].strip() if header.startswith("Bearer ") else ""
+    if not token_is_admin(token):
+        return _json('{"error": "Correo o contraseña incorrectos."}', 401)
+    return None
+
+
+def _attach_cookie(response, classroom_name):
+    response.set_cookie(
+        COOKIE_NAME,
+        dump_classroom_cookie(classroom_name),
+        httponly=True,
+        samesite="Strict",
+        path="/",
+    )
+    return response
 
 
 @app.route("/")
 def index():
-    """Main screen. Redirects to setup when no classroom is saved."""
-    classroom_name = load_saved_classroom()
+    """Main screen. Redirects to setup when this browser has no classroom."""
+    classroom_name = _classroom_cookie()
     if not classroom_name:
-        print("⚠️ No hay salón configurado. Redirigiendo a /setup")
+        print("No hay salón en este navegador. Redirigiendo a /setup")
         return redirect("/setup")
-    print(f"✔ Salón configurado: {classroom_name}")
+    print(f"Salón de este navegador: {classroom_name}")
     return render_template("index.html")
 
 
 @app.route("/enroll")
 def enroll():
+    if not _classroom_cookie():
+        return redirect("/setup")
     return render_template("enroll.html")
 
 
@@ -63,16 +90,22 @@ def firebase_config_route():
     return send_file("./firebase_config_public.json")
 
 
-def forward_to_recognition(path):
+def forward_to_recognition(path, classroom_name):
     """Send this request to the recognition process and return its response."""
-    url = RECOGNITION_ORIGIN + path
-    if request.query_string:
-        url += "?" + request.query_string.decode()
+    full_path = path
+    query = request.query_string.decode()
+    if query:
+        full_path += "?" + query
     payload = None if request.method == "GET" else request.get_data()
-    headers = {}
+    headers = sign_forward(request.method, path, query, payload or b"", classroom_name)
     if request.content_type:
         headers["Content-Type"] = request.content_type
-    outgoing = urllib.request.Request(url, data=payload, headers=headers, method=request.method)
+    outgoing = urllib.request.Request(
+        RECOGNITION_ORIGIN + full_path,
+        data=payload,
+        headers=headers,
+        method=request.method,
+    )
     try:
         with urllib.request.urlopen(outgoing) as incoming:
             content_type = incoming.headers.get("Content-Type", "application/json")
@@ -81,26 +114,60 @@ def forward_to_recognition(path):
         content_type = error.headers.get("Content-Type", "application/json")
         return Response(error.read(), status=error.code, content_type=content_type)
     except urllib.error.URLError as error:
-        print(f"✖ El reconocimiento no respondió en {path}: {error.reason}")
-        return Response(
-            '{"error": "El reconocimiento no respondió"}',
-            status=502,
-            content_type="application/json",
-        )
+        print(f"El reconocimiento no respondió en {path}: {error.reason}")
+        return _json('{"error": "El reconocimiento no respondió"}', 502)
 
 
 def _proxy(path, method):
     def view():
-        return forward_to_recognition(path)
+        classroom_name = _classroom_cookie()
+        if not classroom_name:
+            return _json('{"error": "Configura un salón para continuar."}', 401)
+        return forward_to_recognition(path, classroom_name)
 
     view.__name__ = "proxy_" + method.lower() + "_" + path.strip("/").replace("/", "_")
     return view
 
 
-for proxied_path in GET_PATHS:
-    proxy_view = _proxy(proxied_path, "GET")
-    app.add_url_rule(proxied_path, endpoint=proxy_view.__name__, view_func=proxy_view, methods=["GET"])
+@app.route("/api/classrooms", methods=["GET"])
+def api_classrooms():
+    rejected = _require_admin()
+    if rejected:
+        return rejected
+    return forward_to_recognition("/api/classrooms", "")
 
-for proxied_path in POST_PATHS:
-    proxy_view = _proxy(proxied_path, "POST")
-    app.add_url_rule(proxied_path, endpoint=proxy_view.__name__, view_func=proxy_view, methods=["POST"])
+
+@app.route("/api/set_classroom", methods=["POST"])
+def api_set_classroom():
+    rejected = _require_admin()
+    if rejected:
+        return rejected
+    data = request.get_json(silent=True) or {}
+    classroom_name = str(data.get("classroom") or "").strip()
+    if not classroom_name:
+        return _json('{"success": false, "error": "Nombre de salón requerido"}', 400)
+    response = forward_to_recognition("/api/set_classroom", classroom_name)
+    if response.status_code == 200:
+        _attach_cookie(response, classroom_name)
+    return response
+
+
+@app.route("/api/event_mode", methods=["POST"])
+def api_set_event_mode():
+    rejected = _require_admin()
+    if rejected:
+        return rejected
+    classroom_name = _classroom_cookie()
+    if not classroom_name:
+        return _json('{"ok": false, "error": "Configura un salón para continuar."}', 401)
+    return forward_to_recognition("/api/event_mode", classroom_name)
+
+
+for proxied_method, proxied_path in COOKIE_PATHS:
+    proxy_view = _proxy(proxied_path, proxied_method)
+    app.add_url_rule(
+        proxied_path,
+        endpoint=proxy_view.__name__,
+        view_func=proxy_view,
+        methods=[proxied_method],
+    )
