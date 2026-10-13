@@ -7,9 +7,7 @@ __pycache__/
 firebase_config_public.json
 .env
 *.key
-backend/
 classroom_config.txt
 
 audit_log.json
-GUIA_DEL_SISTEMA.md
 *.conf

@@ -14,11 +14,9 @@ from config import (
     PROJECT_ROOT,
     RECOGNITION_SECONDS,
     RECOGNIZER_MODEL_PATH,
-    VECTOR_PATH,
 )
 
 photo_dir = os.path.join(PROJECT_ROOT, PHOTO_DIR_NAME)
-vector_path = VECTOR_PATH
 model_lock = threading.Lock()
 
 os.makedirs(photo_dir, exist_ok=True)
@@ -302,13 +300,6 @@ def _digit_folders():
     return [name for name in _person_folders() if str(name).isdigit()]
 
 
-def _delete_plaintext_vectors():
-    directory = os.path.dirname(vector_path) or "."
-    for path in (vector_path, os.path.join(directory, "face_vectors copy.json")):
-        if os.path.isfile(path):
-            os.remove(path)
-
-
 def refresh_remote_gallery():
     """Load the gallery from Firebase. A missing folder does not delete that copy."""
     from app.consent.legal import biometrico_is_explicit_false
@@ -358,10 +349,6 @@ def refresh_remote_gallery():
         print(f"Galería desde Firebase: {len(stored)}. Faltan {missing}.")
     else:
         print(f"Galería desde Firebase: {len(stored)}")
-    if missing == 0 and not _digit_folders():
-        _delete_plaintext_vectors()
-
-
 def reload_stored_gallery():
     """Replace the in-memory gallery with the real sface copies only."""
     from app.firebase.vectors import list_stored_vectors
