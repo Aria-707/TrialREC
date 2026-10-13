@@ -1,5 +1,5 @@
 """Cosine cutoff. These calls do not open the camera."""
-from face import choose_match
+from app.recognition.face import choose_match
 
 
 def test_clear_winner_is_a_match():

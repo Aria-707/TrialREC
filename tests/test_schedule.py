@@ -1,7 +1,7 @@
 """Class window. These calls do not read or write Firestore."""
 from datetime import datetime
 
-from schedule import (
+from app.attendance.timetable import (
     arrival_from_start,
     event_finish_at,
     event_window_matches,

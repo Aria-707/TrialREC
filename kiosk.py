@@ -51,7 +51,7 @@ def main():
     child_env = os.environ.copy()
     child_env["PYTHONUNBUFFERED"] = "1"
     recognition = subprocess.Popen(
-        [sys.executable, str(ROOT / "recognition.py")],
+        [sys.executable, "-m", "app.recognition.boot"],
         cwd=str(ROOT),
         env=child_env,
     )
@@ -68,7 +68,7 @@ def main():
             print("✖ El reconocimiento no abrió el puerto a tiempo.")
             return
 
-        import bff
+        import app.http.bff as bff
 
         local = make_server("127.0.0.1", BFF_PORT, bff.app, threaded=True)
         threading.Thread(target=local.serve_forever, daemon=True).start()

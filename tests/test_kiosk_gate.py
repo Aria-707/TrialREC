@@ -1,7 +1,7 @@
 """Cookie and signature. These tests do not open the camera or write Firestore."""
 import time
 
-from kiosk_gate import (
+from app.http.gate import (
     dump_classroom_cookie,
     read_classroom_cookie,
     sign_forward,
@@ -39,7 +39,7 @@ def test_signature_accepts_a_fresh_forward_and_rejects_a_changed_classroom():
 
 def test_old_signature_is_rejected():
     timestamp = str(int(time.time()) - 600)
-    from kiosk_gate import _signature
+    from app.http.gate import _signature
 
     signature = _signature(timestamp, "Sala A", "GET", "/api/active_course", "", b"")
     assert not signature_matches(
@@ -48,9 +48,9 @@ def test_old_signature_is_rejected():
 
 
 def test_recognition_rejects_an_unsigned_frame():
-    import routes
+    from app.http.recognition_app import app as recognition_app
 
-    client = routes.app.test_client()
+    client = recognition_app.test_client()
     blocked = client.post("/recognize", json={"image": "a"})
     assert blocked.status_code == 403
 
@@ -62,7 +62,7 @@ def test_recognition_rejects_an_unsigned_frame():
 
 
 def test_browser_without_a_classroom_sees_setup_and_cannot_mark_attendance():
-    import bff
+    import app.http.bff as bff
 
     client = bff.app.test_client()
     home = client.get("/")
